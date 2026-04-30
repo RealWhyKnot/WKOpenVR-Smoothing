@@ -1,0 +1,7 @@
+{
+	"alwaysActivate": true,
+	"name" : "01fingersmoothing",
+	"directory" : "",
+	"resourceOnly" : false,
+	"activateOtherDriversWhenEnabled" : true
+}

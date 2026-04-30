@@ -1,0 +1,15 @@
+[submodule "lib/minhook"]
+	path = lib/minhook
+	url = https://github.com/bdunderscore/minhook.git
+[submodule "lib/openvr"]
+	path = lib/openvr
+	url = https://github.com/ValveSoftware/openvr
+[submodule "lib/imgui"]
+	path = lib/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "lib/implot"]
+	path = lib/implot
+	url = https://github.com/epezent/implot.git
+[submodule "lib/glfw"]
+	path = lib/glfw
+	url = https://github.com/glfw/glfw

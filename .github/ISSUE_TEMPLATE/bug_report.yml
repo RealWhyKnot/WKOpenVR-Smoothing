@@ -1,0 +1,77 @@
+name: Bug report
+description: Something is broken.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, check the [README](https://github.com/RealWhyKnot/FingerSmoothing#compatibility) compatibility section — finger smoothing only affects OpenVR apps that consume Index skeletal input. Native-OpenXR apps and non-Index controllers are out of scope.
+
+        If you are having issues after updating SteamVR, please check for a new release at the [releases page](https://github.com/RealWhyKnot/FingerSmoothing/releases) before posting an issue.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you do, what did you expect, what happened instead?
+      placeholder: |
+        Steps to reproduce:
+        1. ...
+        2. ...
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app(s) did you reproduce in?
+      multiple: true
+      options:
+        - VRChat
+        - Other OpenVR app (describe below)
+        - SteamVR Home / Bindings UI
+    validations:
+      required: true
+
+  - type: input
+    id: fs-version
+    attributes:
+      label: FingerSmoothing version
+      description: From the overlay's footer, or `version.txt` in the install dir.
+      placeholder: e.g. 0.1.0 or 2026.4.30.4-93E3
+    validations:
+      required: true
+
+  - type: input
+    id: steamvr-version
+    attributes:
+      label: SteamVR version
+      placeholder: e.g. 2.5.5
+    validations:
+      required: true
+
+  - type: input
+    id: hmd-controllers
+    attributes:
+      label: Hardware
+      description: HMD + controllers + base-station setup.
+      placeholder: e.g. Quest Pro (Air Link) + Index Knuckles + 4 Lighthouse base stations
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Paste relevant excerpts from `<SteamVR>\drivers\01fingersmoothing\bin\win64\fingersmoothing_driver.log` (the `FS-*` lines), plus any `vrserver.txt` errors from around the same timestamps.
+      render: text
+
+  - type: textarea
+    id: extra-context
+    attributes:
+      label: Anything else?
+      description: Screenshots, videos, recent driver changes — anything that might help.

@@ -1,0 +1,150 @@
+name: Release
+
+# Triggered by pushing a tag like v2026.4.30.0 (release). Dev-style tags
+# v2026.4.30.7-4974 are accepted but rare on the release stream. The tag
+# (minus the leading "v") drives the build's version.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build distribution
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG_NAME -replace '^v', ''
+          ./build.ps1 -Version $version
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          $installed = $false
+          for ($i = 1; $i -le 3 -and -not $installed; $i++) {
+              Write-Host "choco install nsis (attempt $i/3)..."
+              choco install nsis -y --no-progress
+              if ($LASTEXITCODE -eq 0 -and (Test-Path $makensis)) {
+                  $installed = $true
+                  break
+              }
+              if ($i -lt 3) {
+                  Write-Host "Attempt $i failed; sleeping 15s before retry..."
+                  Start-Sleep -Seconds 15
+              }
+          }
+
+          if (-not $installed) {
+              Write-Host "Chocolatey failed all attempts; falling back to direct sourceforge download."
+              $nsisUrl = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10-setup.exe/download"
+              $nsisInstaller = Join-Path $env:RUNNER_TEMP "nsis-setup.exe"
+              Invoke-WebRequest -Uri $nsisUrl -OutFile $nsisInstaller -UseBasicParsing -MaximumRedirection 5
+              & $nsisInstaller /S | Out-Null
+              if (-not (Test-Path $makensis)) {
+                  throw "makensis.exe not found at $makensis after both chocolatey and sourceforge fallback."
+              }
+          }
+          Write-Host "makensis: $makensis"
+
+      - name: Download VC++ Redistributable
+        shell: pwsh
+        run: |
+          $url = 'https://aka.ms/vs/17/release/vc_redist.x64.exe'
+          $out = Join-Path $PWD 'install\vcredist_x64.exe'
+          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
+          if (-not (Test-Path $out)) { throw "vcredist download failed (file not found at $out)." }
+          $size = (Get-Item $out).Length
+          Write-Host "Downloaded vcredist_x64.exe: $size bytes"
+          if ($size -lt 1000000) { throw "vcredist download appears truncated ($size bytes)." }
+
+      - name: Build NSIS installer
+        id: installer
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG_NAME -replace '^v', ''
+          $numeric = $version -replace '-[A-Fa-f0-9]+$', ''
+          if ($numeric -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+              throw "Could not derive a 4-part numeric version from tag '$env:TAG_NAME' (got '$numeric')."
+          }
+          Write-Host "Installer VERSION define: $numeric"
+
+          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          $script   = Join-Path $PWD "install\installer.nsi"
+
+          & $makensis /V3 "/DVERSION=$numeric" /DBUNDLE_VCREDIST $script
+          if ($LASTEXITCODE -ne 0) {
+              throw "makensis failed with exit code $LASTEXITCODE."
+          }
+
+          # OutFile in installer.nsi is "FingerSmoothing.exe" (relative), so it lands next to the script.
+          $installer = Join-Path $PWD "install\FingerSmoothing.exe"
+          if (-not (Test-Path $installer)) { throw "Installer not produced at $installer." }
+
+          $named = Join-Path $PWD "install\FingerSmoothing-$version-Setup.exe"
+          if (Test-Path $named) { Remove-Item -Force $named }
+          Move-Item -Path $installer -Destination $named
+
+          $hash = (Get-FileHash $named -Algorithm SHA256).Hash
+          "path=$named"                  >> $env:GITHUB_OUTPUT
+          "name=$(Split-Path $named -Leaf)" >> $env:GITHUB_OUTPUT
+          "sha256=$hash"                 >> $env:GITHUB_OUTPUT
+          Write-Host "Installer: $named"
+          Write-Host "SHA256: $hash"
+
+      - name: Locate release zip
+        id: zip
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem release/FingerSmoothing-*.zip | Select-Object -First 1
+          if (-not $zip) { throw "No release zip found in release/ — build.ps1 did not produce one." }
+          $hash = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash
+          "path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+          "name=$($zip.Name)"     >> $env:GITHUB_OUTPUT
+          "sha256=$hash"          >> $env:GITHUB_OUTPUT
+          Write-Host "Release zip: $($zip.Name)"
+          Write-Host "SHA256: $hash"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag        = "${{ github.ref_name }}"
+          $zip        = "${{ steps.zip.outputs.path }}"
+          $zipSha     = "${{ steps.zip.outputs.sha256 }}"
+          $zipName    = "${{ steps.zip.outputs.name }}"
+          $installer  = "${{ steps.installer.outputs.path }}"
+          $instSha    = "${{ steps.installer.outputs.sha256 }}"
+          $instName   = "${{ steps.installer.outputs.name }}"
+          $notes  = @"
+          ## FingerSmoothing $tag
+
+          Two download options:
+
+          - **${instName}** — guided installer. Run it; it places the overlay and the SteamVR driver in the right places automatically.
+          - **${zipName}** — drop-in zip. Extract anywhere, copy the ``driver_01fingersmoothing/`` folder into ``<Steam>\steamapps\common\SteamVR\drivers\``, and run ``FingerSmoothing.exe`` from wherever you put it.
+
+          SHA256:
+          - ${instName}: ``${instSha}``
+          - ${zipName}: ``${zipSha}``
+          "@
+          gh release create $tag $zip $installer --title $tag --notes $notes

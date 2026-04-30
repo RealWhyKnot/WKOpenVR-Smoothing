@@ -1,0 +1,30 @@
+// FingerSmoothing.rc — minimal Windows resource script.
+
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+#undef APSTUDIO_READONLY_SYMBOLS
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_FINGERSMOOTHING ICON  "FingerSmoothing.ico"
+IDI_SMALL           ICON  "small.ico"
+
+STRINGTABLE
+BEGIN
+    IDS_APP_TITLE  "FingerSmoothing"
+END
+
+#endif    // English (United States) resources
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "fingersmoothing.manifest"
