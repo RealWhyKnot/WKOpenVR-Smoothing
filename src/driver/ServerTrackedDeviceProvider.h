@@ -3,6 +3,7 @@
 #include <openvr_driver.h>
 
 #include "IPCServer.h"
+#include "Heartbeat.h"
 #include "Protocol.h"
 
 #include <mutex>
@@ -40,4 +41,5 @@ private:
     protocol::SmoothingConfig config;
 
     IPCServer ipc{this};
+    Heartbeat heartbeat;
 };

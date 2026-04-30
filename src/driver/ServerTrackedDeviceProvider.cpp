@@ -24,6 +24,7 @@ vr::EVRInitError ServerTrackedDeviceProvider::Init(vr::IVRDriverContext *pDriver
 
     InjectHooks(this, pDriverContext);
     ipc.Run();
+    heartbeat.Start();
 
     return vr::VRInitError_None;
 }
@@ -31,6 +32,7 @@ vr::EVRInitError ServerTrackedDeviceProvider::Init(vr::IVRDriverContext *pDriver
 void ServerTrackedDeviceProvider::Cleanup()
 {
     LOG("FingerSmoothing driver Cleanup()");
+    heartbeat.Stop();
     ipc.Stop();
     DisableHooks();
     VR_CLEANUP_SERVER_DRIVER_CONTEXT();
