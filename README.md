@@ -1,38 +1,37 @@
-# FingerSmoothing
+# OpenVR-Smoothing
 
-A SteamVR driver that smooths Valve Index controller finger-tracking jitter. Stationary fingers stop twitching; rapid gestures still pass through. Works with any OpenVR app that consumes Index skeletal input — including VRChat.
+Finger-smoothing config UI for the [OpenVR-PairDriver](https://github.com/RealWhyKnot/OpenVR-PairDriver) shared SteamVR driver. Pairs with [OpenVR-SpaceCalibrator](https://github.com/RealWhyKnot/OpenVR-SpaceCalibrator) -- they share the same driver DLL but each toggles its own subsystem on or off via a marker flag file.
 
-> Status: pre-release. The driver hook is in place; smoothing math and UI are landing in active development. Real-world VRChat testing is the only validator. Default install ships with smoothing **OFF** — opt in once you've confirmed the pieces work on your setup.
+## What it does
 
-## Compatibility
+Index Knuckles publish per-frame finger bone arrays through `IVRDriverInput::UpdateSkeletonComponent`. With smoothing enabled, OpenVR-PairDriver intercepts that call and applies a per-bone slerp before the bones reach OpenVR consumers. The result: jittery thumb / pinky tracking on the Knuckles produces visibly steadier hand poses in VRChat (and any other app reading skeletal input).
 
-**In scope** — apps where this driver actively smooths fingers:
+This overlay is the configuration GUI for that feature. It connects to the driver over a named pipe and pushes updates live as you drag the strength slider, so you can dial in the right amount of smoothing without restarting SteamVR.
 
-- VRChat with Index controllers via SteamVR (the primary target).
-- Any OpenVR app that reads Index skeletal data via `IVRInput::GetSkeletalBoneData` / `GetSkeletalSummaryData`.
+The smoothing logic itself lives in OpenVR-PairDriver -- this repo just contains the UI.
 
-**Out of scope** — the driver does not affect these:
+## Install
 
-- Native-OpenXR apps that read finger data via `xrLocateHandJointsEXT`. The interception lives on the OpenVR skeletal-input path; the OpenXR path is separate.
-- Non-Index controllers. Other controllers have no curl/splay sensors to smooth.
+End users: download the `OpenVR-Smoothing-vN.zip` from the [releases page](https://github.com/RealWhyKnot/OpenVR-Smoothing/releases/latest), extract anywhere, copy the `01openvrpair/` folder into `<your Steam>\steamapps\common\SteamVR\drivers\`, and run `OpenVR-Smoothing.exe`.
 
-## How it works
-
-Loads as a SteamVR driver into `vrserver.exe` and hooks `IVRDriverInput::UpdateSkeletonComponent` via MinHook. When Valve's Index driver publishes a skeletal update, our hook intercepts the bone array, derives the 9 summary scalars (5 curls + 4 splays), runs each through a One-Euro filter (Casiez et al., 2012), reconstructs bones from the smoothed scalars, and forwards them to SteamVR's input system. AC-safe — the modified process is `vrserver.exe`, not the game.
+If OpenVR-SpaceCalibrator is also installed, it shares the same `01openvrpair/` folder. Either install order is fine; whichever installer runs second overwrites the driver DLL with whichever bundled copy is newer (per-build version gate) and adds its own `enable_*.flag`.
 
 ## Build
 
-Windows-only. Visual Studio 2022 + CMake.
+Requires CMake 3.15+, MSVC (Visual Studio 2022 recommended), and submodules initialised.
 
-```powershell
-git clone https://github.com/RealWhyKnot/FingerSmoothing.git
-cd FingerSmoothing
-git submodule update --init --recursive
+```
+git clone --recursive https://github.com/RealWhyKnot/OpenVR-Smoothing
+cd OpenVR-Smoothing
 ./build.ps1
 ```
 
-`./quick.ps1` for fast incremental rebuilds during iteration. `./quick.ps1 -Install` hot-swaps the overlay into the installed copy (driver swap requires SteamVR closed first — vrserver locks the DLL).
+Output: `build/artifacts/Release/OpenVR-Smoothing.exe`. Pass `-Release` to produce a distribution zip + manifest under `release/`.
+
+## Pipes
+
+`\\.\pipe\OpenVR-Smoothing` -- this overlay <-> driver. Wire format is `protocol::Request` / `protocol::Response` from [lib/OpenVR-PairDriver/src/common/Protocol.h](https://github.com/RealWhyKnot/OpenVR-PairDriver/blob/main/src/common/Protocol.h). Only `RequestHandshake` and `RequestSetFingerSmoothing` are accepted on this pipe; the driver's per-pipe feature mask rejects calibration requests on the smoothing pipe.
 
 ## License
 
-MIT. See `LICENSE` for full attribution including OpenVR-SpaceCalibrator (driver/overlay scaffolding) and the third-party libraries this build links against.
+MIT, see [LICENSE](LICENSE).

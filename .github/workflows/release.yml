@@ -1,9 +1,16 @@
 name: Release
 
-# Triggered by pushing a tag like v2026.4.30.0 (release). Dev-style tags
-# v2026.4.30.7-4974 are accepted but rare on the release stream. The tag
-# (minus the leading "v") drives the build's version.
-
+# Triggered by pushing a tag like v2026.5.6.0. Builds driver_openvrpair.dll
+# via build.ps1 on a Windows runner (CMake + MSVC), packages it with its
+# resources into a zip, attaches the zip to a GitHub release, and writes the
+# release body from the auto-changelog slice between prev tag and this tag
+# plus the templated section content under .github/release-template/.
+#
+# Changelog promotion: before the build runs, .github/scripts/Update-Changelog.ps1
+# renames the "## Unreleased" heading in CHANGELOG.md and wiki/Changelog.md to
+# "## [vTAG] -- DATE". After the GitHub release is created the promoted files
+# are pushed directly back to main (this repo has no required CI checks on
+# main, so a bot push is accepted).
 on:
   push:
     tags:
@@ -11,6 +18,13 @@ on:
 
 permissions:
   contents: write
+
+# Share a concurrency group with changelog-append so the appender can't run
+# during a release build and add entries to main's Unreleased that the release
+# itself doesn't contain. Only one of these two workflows runs at a time.
+concurrency:
+  group: changelog-append
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -22,152 +36,140 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          submodules: recursive
           fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build distribution
+      - name: Promote Unreleased -> tagged section
+        shell: pwsh
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          ./.github/scripts/Update-Changelog.ps1 -Mode Promote -Version '${{ github.ref_name }}'
+          # Stash promoted files so the post-publish push reflects exactly the
+          # bytes that shipped in the release zip.
+          New-Item -ItemType Directory -Force -Path .changelog-stash/wiki | Out-Null
+          Copy-Item CHANGELOG.md       .changelog-stash/CHANGELOG.md       -Force
+          Copy-Item wiki/Changelog.md  .changelog-stash/wiki/Changelog.md  -Force
+
+      - name: Build driver
         shell: pwsh
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           $version = $env:TAG_NAME -replace '^v', ''
-          ./build.ps1 -Version $version
+          ./build.ps1 -Version $version -Release
 
-      - name: Install NSIS
+      - name: Locate release artifacts
+        id: zip
         shell: pwsh
         run: |
-          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
-          $installed = $false
-          for ($i = 1; $i -le 3 -and -not $installed; $i++) {
-              Write-Host "choco install nsis (attempt $i/3)..."
-              choco install nsis -y --no-progress
-              if ($LASTEXITCODE -eq 0 -and (Test-Path $makensis)) {
-                  $installed = $true
-                  break
-              }
-              if ($i -lt 3) {
-                  Write-Host "Attempt $i failed; sleeping 15s before retry..."
-                  Start-Sleep -Seconds 15
-              }
-          }
+          $zip = Get-ChildItem release/OpenVR-Smoothing-*.zip | Select-Object -First 1
+          if (-not $zip) { throw "No release zip found in release/ -- build.ps1 -Release did not produce one." }
+          $hash = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash
+          $manifest = Get-ChildItem release/OpenVR-Smoothing-*.manifest.tsv | Select-Object -First 1
+          if (-not $manifest) { throw "No manifest found in release/ -- build.ps1 -Release did not produce one." }
+          "path=$($zip.FullName)"           >> $env:GITHUB_OUTPUT
+          "name=$($zip.Name)"               >> $env:GITHUB_OUTPUT
+          "size=$($zip.Length)"             >> $env:GITHUB_OUTPUT
+          "sha256=$hash"                    >> $env:GITHUB_OUTPUT
+          "manifest=$($manifest.FullName)"  >> $env:GITHUB_OUTPUT
+          Write-Host "Release zip:      $($zip.Name)"
+          Write-Host "Release manifest: $($manifest.Name)"
+          Write-Host "SHA256:           $hash"
 
-          if (-not $installed) {
-              Write-Host "Chocolatey failed all attempts; falling back to direct sourceforge download."
-              $nsisUrl = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10-setup.exe/download"
-              $nsisInstaller = Join-Path $env:RUNNER_TEMP "nsis-setup.exe"
-              Invoke-WebRequest -Uri $nsisUrl -OutFile $nsisInstaller -UseBasicParsing -MaximumRedirection 5
-              & $nsisInstaller /S | Out-Null
-              if (-not (Test-Path $makensis)) {
-                  throw "makensis.exe not found at $makensis after both chocolatey and sourceforge fallback."
-              }
-          }
-          Write-Host "makensis: $makensis"
-
-      - name: Download VC++ Redistributable
-        shell: pwsh
-        run: |
-          $url = 'https://aka.ms/vs/17/release/vc_redist.x64.exe'
-          $out = Join-Path $PWD 'install\vcredist_x64.exe'
-          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
-          if (-not (Test-Path $out)) { throw "vcredist download failed (file not found at $out)." }
-          $size = (Get-Item $out).Length
-          Write-Host "Downloaded vcredist_x64.exe: $size bytes"
-          if ($size -lt 1000000) { throw "vcredist download appears truncated ($size bytes)." }
-
-      - name: Build NSIS installer
-        id: installer
-        shell: pwsh
-        env:
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          $version = $env:TAG_NAME -replace '^v', ''
-          $numeric = $version -replace '-[A-Fa-f0-9]+$', ''
-          if ($numeric -notmatch '^\d+\.\d+\.\d+\.\d+$') {
-              throw "Could not derive a 4-part numeric version from tag '$env:TAG_NAME' (got '$numeric')."
-          }
-          Write-Host "Installer VERSION define: $numeric"
-
-          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
-          $script   = Join-Path $PWD "install\installer.nsi"
-
-          & $makensis /V3 "/DVERSION=$numeric" /DBUNDLE_VCREDIST $script
-          if ($LASTEXITCODE -ne 0) {
-              throw "makensis failed with exit code $LASTEXITCODE."
-          }
-
-          # OutFile in installer.nsi is "FingerSmoothing.exe" (relative), so it lands next to the script.
-          $installer = Join-Path $PWD "install\FingerSmoothing.exe"
-          if (-not (Test-Path $installer)) { throw "Installer not produced at $installer." }
-
-          $named = Join-Path $PWD "install\FingerSmoothing-$version-Setup.exe"
-          if (Test-Path $named) { Remove-Item -Force $named }
-          Move-Item -Path $installer -Destination $named
-
-          $hash = (Get-FileHash $named -Algorithm SHA256).Hash
-          "path=$named"                  >> $env:GITHUB_OUTPUT
-          "name=$(Split-Path $named -Leaf)" >> $env:GITHUB_OUTPUT
-          "sha256=$hash"                 >> $env:GITHUB_OUTPUT
-          Write-Host "Installer: $named"
-          Write-Host "SHA256: $hash"
-
-      - name: Generate auto-changelog
+      - name: Generate release body
         id: changelog
         shell: pwsh
         env:
           TAG_NAME: ${{ github.ref_name }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $body = & ./.github/scripts/Generate-ReleaseNotes.ps1
-          if (-not $body) { $body = '' }
-          # Multi-line outputs require the heredoc form. Unique delimiter so a
-          # stray "EOF" inside the body can't terminate it early.
+          $body = & ./.github/scripts/Generate-ReleaseNotes.ps1 `
+            -ZipPath   '${{ steps.zip.outputs.path }}' `
+            -ZipName   '${{ steps.zip.outputs.name }}' `
+            -ZipSize   '${{ steps.zip.outputs.size }}' `
+            -ZipSha256 '${{ steps.zip.outputs.sha256 }}' `
+            -Manifest  '${{ steps.zip.outputs.manifest }}'
+          if (-not $body) {
+            throw "Generate-ReleaseNotes.ps1 returned empty output. Inspect the workflow log for warnings."
+          }
           $delim = "EOF_" + [Guid]::NewGuid().ToString('N')
           "body<<$delim" >> $env:GITHUB_OUTPUT
           $body          >> $env:GITHUB_OUTPUT
           $delim         >> $env:GITHUB_OUTPUT
 
-      - name: Locate release zip
-        id: zip
-        shell: pwsh
-        run: |
-          $zip = Get-ChildItem release/FingerSmoothing-*.zip | Select-Object -First 1
-          if (-not $zip) { throw "No release zip found in release/ — build.ps1 did not produce one." }
-          $hash = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash
-          "path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
-          "name=$($zip.Name)"     >> $env:GITHUB_OUTPUT
-          "sha256=$hash"          >> $env:GITHUB_OUTPUT
-          Write-Host "Release zip: $($zip.Name)"
-          Write-Host "SHA256: $hash"
-
       - name: Create GitHub release
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          $tag        = "${{ github.ref_name }}"
-          $zip        = "${{ steps.zip.outputs.path }}"
-          $zipSha     = "${{ steps.zip.outputs.sha256 }}"
-          $zipName    = "${{ steps.zip.outputs.name }}"
-          $installer  = "${{ steps.installer.outputs.path }}"
-          $instSha    = "${{ steps.installer.outputs.sha256 }}"
-          $instName   = "${{ steps.installer.outputs.name }}"
-          $auto   = @'
+          $tag = "${{ github.ref_name }}"
+          $zip = "${{ steps.zip.outputs.path }}"
+          $notes = @'
           ${{ steps.changelog.outputs.body }}
           '@
-          $notes  = @"
-          ## FingerSmoothing $tag
+          $notesPath = Join-Path $env:RUNNER_TEMP 'release-body-input.md'
+          $notes | Out-File -LiteralPath $notesPath -Encoding utf8 -NoNewline
+          "input_path=$notesPath" >> $env:GITHUB_OUTPUT
+          gh release create $tag $zip --title $tag --notes-file $notesPath
 
-          Two download options:
+      - name: Verify published release body matches input
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag       = "${{ github.ref_name }}"
+          $inputPath = "${{ steps.publish.outputs.input_path }}"
+          $expected  = (Get-Content -LiteralPath $inputPath -Raw -Encoding UTF8) -replace "`r`n","`n"
+          $expected  = $expected.TrimEnd("`n")
+          $actual    = & gh release view $tag --json body --jq '.body'
+          if ($LASTEXITCODE -ne 0) { throw "gh release view $tag failed: $actual" }
+          $actual    = ($actual -replace "`r`n","`n").TrimEnd("`n")
+          if ($expected -eq $actual) {
+            Write-Host "Published release body matches input ($($expected.Length) chars)."
+            return
+          }
+          Write-Host "::warning::Published body differs from input. Auto-correcting via gh release edit."
+          gh release edit $tag --notes-file $inputPath
+          if ($LASTEXITCODE -ne 0) { throw "gh release edit failed during auto-correct" }
+          $recheck = & gh release view $tag --json body --jq '.body'
+          $recheck = ($recheck -replace "`r`n","`n").TrimEnd("`n")
+          if ($recheck -ne $expected) {
+            $diffPath = Join-Path $env:RUNNER_TEMP 'release-body-actual.md'
+            $recheck | Out-File -LiteralPath $diffPath -Encoding utf8 -NoNewline
+            throw "Release body still differs after auto-correct. Compare $inputPath vs $diffPath."
+          }
+          Write-Host "Auto-correct succeeded; body now matches input."
 
-          - **${instName}** — guided installer. Run it; it places the overlay and the SteamVR driver in the right places automatically.
-          - **${zipName}** — drop-in zip. Extract anywhere, copy the ``driver_01fingersmoothing/`` folder into ``<Steam>\steamapps\common\SteamVR\drivers\``, and run ``FingerSmoothing.exe`` from wherever you put it.
+      - name: Push promoted changelog back to main
+        # main is unprotected on this repo, so a bot push is accepted directly
+        # without the PR machinery WKVRCProxy uses. Done last so a build/release
+        # failure does not leave the changelog on main mismatched against the
+        # actual published artifact.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-          SHA256:
-          - ${instName}: ``${instSha}``
-          - ${zipName}: ``${zipSha}``
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
 
-          ---
+          cp .changelog-stash/CHANGELOG.md           CHANGELOG.md
+          cp .changelog-stash/wiki/Changelog.md wiki/Changelog.md
 
-          $auto
-          "@
-          gh release create $tag $zip $installer --title $tag --notes $notes
+          if [[ -z "$(git status --porcelain CHANGELOG.md wiki/Changelog.md)" ]]; then
+            echo "Nothing to promote -- main is already in promoted state."
+            exit 0
+          fi
+
+          git add CHANGELOG.md wiki/Changelog.md
+          git commit -m "docs(changelog): promote Unreleased -> ${TAG_NAME} [skip changelog]"
+          git push origin main

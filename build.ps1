@@ -1,162 +1,128 @@
 param(
-    # When set, this overrides the auto-derived YYYY.M.D.N-XXXX stamp. The Release workflow
-    # passes the git tag here (with the leading "v" stripped) so the published release's tag,
-    # zip filename, and embedded version are all the same string. Local builds leave this
-    # empty and get the auto-derived stamp from $Today + $BuildCount + a fresh GUID prefix.
+    # Override the auto-derived YYYY.M.D.N-XXXX dev stamp. Release CI passes
+    # the git tag (with leading "v" stripped) so the published release's tag,
+    # zip filename, and embedded version are all the same string.
     [string]$Version = "",
 
-    # Skip the release zip packaging step. CI builds always want it; local rebuilds usually
-    # don't, and accumulate one zip per build in release/ otherwise.
-    [switch]$SkipZip,
+    # Skip the cmake configure step.
+    [switch]$SkipConfigure,
 
-    # Skip the CMake configure step (rerun MSBuild only). Useful when iterating on a single
-    # source file -- saves the ~10s reconfigure. The CMake configure runs unconditionally
-    # without this flag because that's the safe default; missed reconfigures cause stale
-    # build files to mask source changes.
-    [switch]$SkipConfigure
+    # Produce a release zip + per-file manifest TSV under release/. Required
+    # by .github/workflows/release.yml.
+    [switch]$Release
 )
 
 $ErrorActionPreference = "Stop"
-
-# Pin the working directory to the script's own root.
 Set-Location $PSScriptRoot
 
-# Activate the repo's tracked git hooks (.githooks/) the first time the build runs in a clone.
-try {
-    $current = (& git config --local --get core.hooksPath 2>$null)
-    if ($LASTEXITCODE -eq 0 -and $current -ne ".githooks") {
-        & git config --local core.hooksPath .githooks
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Configured local git core.hooksPath = .githooks (commit-msg guard now active)." -ForegroundColor DarkGray
-        }
-    } elseif ($LASTEXITCODE -ne 0) {
-        & git config --local core.hooksPath .githooks 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Configured local git core.hooksPath = .githooks (commit-msg guard now active)." -ForegroundColor DarkGray
-        }
-    }
-} catch { }
-
-# --- Submodule check ---
-$openvrHeader = Join-Path $PSScriptRoot "lib/openvr/headers/openvr_driver.h"
-if (!(Test-Path $openvrHeader)) {
-    Write-Host "Submodules missing -- running 'git submodule update --init --recursive'..." -ForegroundColor Yellow
-    $PrevEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        & git submodule update --init --recursive
-        if ($LASTEXITCODE -ne 0) {
-            throw "Submodule init failed (exit $LASTEXITCODE). Inspect the output above."
-        }
-    } finally {
-        $ErrorActionPreference = $PrevEap
-    }
+# Activate the repo's tracked git hooks the first time the build runs in a
+# clone. Idempotent: only writes when the value would change.
+$currentHooksPath = & git config --get core.hooksPath 2>$null
+if ($currentHooksPath -ne ".githooks") {
+    & git config core.hooksPath ".githooks"
+    Write-Host "Activated .githooks/ via core.hooksPath"
 }
 
-# --- Daily Versioning Logic ---
-$LocalVersionState = Join-Path $PSScriptRoot "build/local_build_state.json"
-$BuildStateDir = Split-Path $LocalVersionState -Parent
-if (!(Test-Path $BuildStateDir)) { New-Item -ItemType Directory -Path $BuildStateDir -Force | Out-Null }
-
-if ($Version) {
-    if ($Version -notmatch '^\d{4}\.\d+\.\d+\.\d+(-[A-Fa-f0-9]{4})?$') {
-        throw "Invalid -Version '$Version'. Expected YYYY.M.D.N (release) or YYYY.M.D.N-XXXX (dev, XXXX = 4 hex chars)."
-    }
-    $FullVersion = $Version
-    Write-Host "Using caller-supplied version (skipping local-state increment)." -ForegroundColor DarkGray
-} else {
-    $Today = Get-Date -Format "yyyy.M.d"
-    $BuildCount = 0
-    $UID = [Guid]::NewGuid().ToString().Substring(0, 4).ToUpper()
-
-    if (Test-Path $LocalVersionState) {
-        $State = Get-Content $LocalVersionState | ConvertFrom-Json
-        if ($State.Date -eq $Today) {
-            $BuildCount = $State.Count + 1
+# Stamp the build version. Release CI passes -Version; local builds derive
+# the stamp from today's date + a per-day counter + a 4-hex GUID prefix.
+if ($Version -eq "") {
+    $today = Get-Date -Format "yyyy.M.d"
+    $counterFile = "build/local_build_state.json"
+    $counter = 0
+    if (Test-Path $counterFile) {
+        $state = Get-Content $counterFile -Raw | ConvertFrom-Json
+        if ($state.date -eq $today) {
+            $counter = [int]$state.counter + 1
         }
     }
-
-    $FullVersion = "$Today.$BuildCount-$UID"
-    @{ "Date" = $Today; "Count" = $BuildCount } | ConvertTo-Json | Out-File $LocalVersionState -Encoding UTF8
+    $uid = ([guid]::NewGuid().ToString("N").Substring(0, 4)).ToUpper()
+    $Version = "$today.$counter-$uid"
+    New-Item -ItemType Directory -Force -Path "build" | Out-Null
+    @{ date = $today; counter = $counter } | ConvertTo-Json | Set-Content $counterFile
 }
+Set-Content -Path "version.txt" -Value $Version -NoNewline
+Write-Host "Build version: $Version"
 
-Write-Host "Building Version: $FullVersion" -ForegroundColor Magenta
-
-# Emit version.txt at the repo root. The git prepare-commit-msg hook reads this to stamp commits.
-$FullVersion | Set-Content -Path (Join-Path $PSScriptRoot "version.txt") -Encoding UTF8 -NoNewline
-
-# Emit src/overlay/BuildStamp.h so the UI footer can display the live build stamp. The
-# header is regenerated each build; gitignored.
-$BuildStampPath = Join-Path $PSScriptRoot "src/overlay/BuildStamp.h"
-$BuildChannel = if ($Version) { "release" } else { "dev" }
-$BuildStampContent = @"
-// This file is generated by build.ps1. Do not edit; do not commit.
-#pragma once
-
-#define FINGERSMOOTH_BUILD_STAMP "$FullVersion"
-#define FINGERSMOOTH_BUILD_CHANNEL "$BuildChannel"
-"@
-Set-Content -Path $BuildStampPath -Value $BuildStampContent -Encoding UTF8
-
-# --- CMake configure ---
+# Configure (skippable for incremental edits). The CMAKE_POLICY_VERSION_MINIMUM
+# bump keeps any pre-3.5 cmake_minimum_required in submodule history accepted
+# by current CMake.
 if (-not $SkipConfigure) {
-    Write-Host "`n--- CMake configure ---" -ForegroundColor Cyan
-    $PrevEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
+    & cmake -S . -B build -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+    if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
+}
+
+# Build Release.
+& cmake --build build --config Release --parallel
+if ($LASTEXITCODE -ne 0) { throw "Build failed" }
+
+# Verify the artifact lands where we expect.
+$exePath = "build/artifacts/Release/OpenVR-Smoothing.exe"
+if (-not (Test-Path $exePath)) {
+    throw "Expected overlay exe not found at $exePath"
+}
+$exe = Get-Item $exePath
+Write-Host ""
+Write-Host ("Built {0} ({1:N0} bytes, {2})" -f $exe.Name, $exe.Length, $exe.LastWriteTime)
+Write-Host ("  -> {0}" -f $exe.FullName)
+
+if ($Release) {
+    # Build the OpenVR-PairDriver submodule so its driver tree is available
+    # to bundle into the release zip.
+    $PairDriverRoot = Join-Path $PSScriptRoot "lib/OpenVR-PairDriver"
+    $PairDriverTree = Join-Path $PairDriverRoot "build/driver_openvrpair"
+    Write-Host ""
+    Write-Host "--- Building OpenVR-PairDriver submodule ---" -ForegroundColor Cyan
+    Push-Location $PairDriverRoot
     try {
-        & cmake -G "Visual Studio 17 2022" -A x64 -B bin -S . "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -Wno-dev
-        if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
+        & (Join-Path $PairDriverRoot "build.ps1") -Version $Version
+        if ($LASTEXITCODE -ne 0) { throw "Submodule build failed (exit $LASTEXITCODE)" }
     } finally {
-        $ErrorActionPreference = $PrevEap
+        Pop-Location
     }
-}
+    if (-not (Test-Path $PairDriverTree)) {
+        throw "Submodule built but driver tree not at $PairDriverTree"
+    }
 
-# --- MSBuild ---
-Write-Host "`n--- Building (Release|x64) ---" -ForegroundColor Cyan
-$PrevEap = $ErrorActionPreference
-$ErrorActionPreference = "Continue"
-try {
-    & cmake --build bin --config Release --parallel
-    if ($LASTEXITCODE -ne 0) { throw "cmake build failed (exit $LASTEXITCODE)" }
-} finally {
-    $ErrorActionPreference = $PrevEap
-}
+    New-Item -ItemType Directory -Force -Path "release" | Out-Null
 
-# --- Locate built artifacts ---
-$OverlayExe = Join-Path $PSScriptRoot "bin/artifacts/Release/FingerSmoothing.exe"
-$DriverDir  = Join-Path $PSScriptRoot "bin/driver_01fingersmoothing"
-$DriverDll  = Join-Path $DriverDir "bin/win64/driver_01fingersmoothing.dll"
-
-if (!(Test-Path $OverlayExe)) { throw "Expected overlay exe not found at $OverlayExe" }
-if (!(Test-Path $DriverDll))  { throw "Expected driver DLL not found at $DriverDll" }
-
-# --- Release zip ---
-if ($SkipZip) {
-    Write-Host "`nSkipping release zip (-SkipZip)." -ForegroundColor DarkGray
-} else {
-    Write-Host "`n--- Packaging release zip ---" -ForegroundColor Cyan
-
-    $ReleaseDir = Join-Path $PSScriptRoot "release"
-    if (!(Test-Path $ReleaseDir)) { New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null }
-
-    $StageDir = Join-Path $ReleaseDir "_stage_$FullVersion"
+    # Stage the release tree:
+    #   <stage>/OpenVR-Smoothing.exe
+    #   <stage>/01openvrpair/...                 (driver tree)
+    #   <stage>/01openvrpair/resources/enable_smoothing.flag
+    #   <stage>/version.txt
+    $StageDir = Join-Path "release" "_stage_$Version"
     if (Test-Path $StageDir) { Remove-Item -Recurse -Force $StageDir }
-    New-Item -ItemType Directory -Path $StageDir -Force | Out-Null
+    New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
-    Copy-Item -Path $OverlayExe -Destination $StageDir
-    Copy-Item -Path $DriverDir -Destination $StageDir -Recurse
-    $FullVersion | Set-Content -Path (Join-Path $StageDir "version.txt") -Encoding UTF8 -NoNewline
+    Copy-Item -Path $exePath -Destination $StageDir
+    $StagedDriverDir = Join-Path $StageDir "01openvrpair"
+    Copy-Item -Recurse -Path $PairDriverTree -Destination $StagedDriverDir
+    $StagedFlagDir = Join-Path $StagedDriverDir "resources"
+    if (-not (Test-Path $StagedFlagDir)) { New-Item -ItemType Directory -Force -Path $StagedFlagDir | Out-Null }
+    Set-Content -Path (Join-Path $StagedFlagDir "enable_smoothing.flag") -Value 'enabled' -NoNewline
+    $Version | Set-Content -Path (Join-Path $StageDir "version.txt") -Encoding UTF8 -NoNewline
 
-    $ZipPath = Join-Path $ReleaseDir "FingerSmoothing-$FullVersion.zip"
-    if (Test-Path $ZipPath) { Remove-Item -Force $ZipPath }
-    Compress-Archive -Path (Join-Path $StageDir "*") -DestinationPath $ZipPath -Force
+    $zipName = "OpenVR-Smoothing-v$Version.zip"
+    $zipPath = Join-Path "release" $zipName
+    if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
+    Compress-Archive -Path (Join-Path $StageDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
+    $zipItem = Get-Item $zipPath
+
+    # Per-file SHA256 manifest (no BOM) for the File integrity table.
+    $manifestName = "OpenVR-Smoothing-v$Version.manifest.tsv"
+    $manifestPath = Join-Path "release" $manifestName
+    $rootLength = (Resolve-Path $StageDir).Path.Length + 1
+    $rows = Get-ChildItem $StageDir -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($rootLength).Replace('\', '/')
+        $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+        "{0}`t{1}`t{2}" -f $h, $_.Length, $rel
+    }
+    $enc = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllLines((Resolve-Path -LiteralPath (Split-Path $manifestPath)).Path + "\" + (Split-Path -Leaf $manifestPath), $rows, $enc)
+
     Remove-Item -Recurse -Force $StageDir
 
-    $ZipHash = (Get-FileHash $ZipPath -Algorithm SHA256).Hash
-    Write-Host "Release zip ready: $ZipPath" -ForegroundColor Green
-    Write-Host "SHA256: $ZipHash" -ForegroundColor Green
+    Write-Host ""
+    Write-Host ("Packaged release zip:      {0} ({1:N0} bytes)" -f $zipItem.Name, $zipItem.Length)
+    Write-Host ("Packaged release manifest: {0}" -f $manifestName)
 }
-
-Write-Host "`nBuild $FullVersion complete." -ForegroundColor Green
-Write-Host "  Overlay: $OverlayExe" -ForegroundColor DarkGray
-Write-Host "  Driver:  $DriverDll"  -ForegroundColor DarkGray
