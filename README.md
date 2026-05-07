@@ -34,4 +34,4 @@ Output: `build/artifacts/Release/OpenVR-Smoothing.exe`. Pass `-Release` to produ
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+GNU General Public License v3.0, see [LICENSE](LICENSE). Project copyright lines and third-party attributions in [NOTICE](NOTICE).
