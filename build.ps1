@@ -97,6 +97,15 @@ if ($Release) {
     Copy-Item -Path $exePath -Destination $StageDir
     $StagedDriverDir = Join-Path $StageDir "01openvrpair"
     Copy-Item -Recurse -Path $PairDriverTree -Destination $StagedDriverDir
+    $StagedDriverBin = Join-Path $StagedDriverDir "bin/win64"
+    $BareDriverDll = Join-Path $StagedDriverBin "driver_openvrpair.dll"
+    $LoaderDriverDll = Join-Path $StagedDriverBin "driver_01openvrpair.dll"
+    if (Test-Path $BareDriverDll) {
+        Move-Item -Force -Path $BareDriverDll -Destination $LoaderDriverDll
+    }
+    if (-not (Test-Path $LoaderDriverDll)) {
+        throw "Staged shared driver DLL not found at $LoaderDriverDll"
+    }
     $StagedFlagDir = Join-Path $StagedDriverDir "resources"
     if (-not (Test-Path $StagedFlagDir)) { New-Item -ItemType Directory -Force -Path $StagedFlagDir | Out-Null }
     Set-Content -Path (Join-Path $StagedFlagDir "enable_smoothing.flag") -Value 'enabled' -NoNewline

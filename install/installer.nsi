@@ -176,7 +176,7 @@ Section "Install" SecInstall
 	SetOutPath "$vrRuntimePath\drivers\01openvrpair\resources\settings"
 	File "${DRIVER_BASEDIR}\resources\settings\default.vrsettings"
 	SetOutPath "$vrRuntimePath\drivers\01openvrpair\bin\win64"
-	File "${DRIVER_BASEDIR}\bin\win64\driver_openvrpair.dll"
+	File /oname=driver_01openvrpair.dll "${DRIVER_BASEDIR}\bin\win64\driver_openvrpair.dll"
 
 	; Drop our feature flag. SC's enable_calibration.flag, if present, is
 	; left untouched.
