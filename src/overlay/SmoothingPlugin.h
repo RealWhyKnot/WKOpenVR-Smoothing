@@ -10,21 +10,17 @@ class SmoothingPlugin final : public openvr_pair::overlay::FeaturePlugin
 {
 public:
 	const char *Name() const override { return "Smoothing"; }
-	const char *IconGlyph() const override;
-	const char *Subtitle() const override { return "Finger smoothing"; }
 	const char *FlagFileName() const override { return "enable_smoothing.flag"; }
 	const char *PipeName() const override { return OPENVR_PAIRDRIVER_SMOOTHING_PIPE_NAME; }
 
 	void OnStart(openvr_pair::overlay::ShellContext &context) override;
 	void Tick(openvr_pair::overlay::ShellContext &context) override;
 	void DrawTab(openvr_pair::overlay::ShellContext &context) override;
-	bool IpcStatusOk(openvr_pair::overlay::ShellContext &context) const override;
 
 private:
 	SmoothingConfig cfg_ = LoadConfig();
 	SmoothingIPCClient ipc_;
 	std::string connectError_;
-	bool dirty_ = false;
 
 	void ConnectIfNeeded();
 	void SendConfig();
