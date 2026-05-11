@@ -1,13 +1,20 @@
 #include "SmoothingPlugin.h"
 
+#include "Icons.h"
 #include "Protocol.h"
 #include "ShellContext.h"
+#include "Widgets.h"
 
 #include <imgui.h>
 
 #include <algorithm>
 #include <exception>
 #include <memory>
+
+const char *SmoothingPlugin::IconGlyph() const
+{
+	return ICON_PAIR_SMOOTH;
+}
 
 void SmoothingPlugin::OnStart(openvr_pair::overlay::ShellContext &)
 {
@@ -48,75 +55,81 @@ void SmoothingPlugin::SendConfig()
 	}
 }
 
+bool SmoothingPlugin::IpcStatusOk(openvr_pair::overlay::ShellContext &) const
+{
+	return ipc_.IsConnected();
+}
+
 void SmoothingPlugin::DrawTab(openvr_pair::overlay::ShellContext &)
 {
-	bool dirty = false;
-
 	if (!connectError_.empty()) {
-		ImGui::TextWrapped("%s", connectError_.c_str());
-		if (ImGui::Button("Retry connection")) {
-			ConnectIfNeeded();
-			SendConfig();
-		}
-		ImGui::Separator();
-	}
-
-	if (ImGui::Checkbox("Enable finger smoothing", &cfg_.master_enabled)) dirty = true;
-	ImGui::BeginDisabled(!cfg_.master_enabled);
-
-	int smoothness = cfg_.smoothness;
-	if (ImGui::SliderInt("Smoothness", &smoothness, 0, 100, "%d%%")) {
-		cfg_.smoothness = smoothness;
-		dirty = true;
-	}
-
-	const char *fingerLabels[5] = { "Thumb", "Index", "Middle", "Ring", "Pinky" };
-	const char *handLabels[2] = { "Left", "Right" };
-	if (ImGui::BeginTable("fingers_grid", 6, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV)) {
-		ImGui::TableSetupColumn("Hand");
-		for (int f = 0; f < 5; ++f) ImGui::TableSetupColumn(fingerLabels[f]);
-		ImGui::TableHeadersRow();
-		for (int hand = 0; hand < 2; ++hand) {
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn();
-			ImGui::TextUnformatted(handLabels[hand]);
-			for (int finger = 0; finger < 5; ++finger) {
-				int bit = hand * 5 + finger;
-				ImGui::TableNextColumn();
-				bool enabled = ((cfg_.finger_mask >> bit) & 1) != 0;
-				ImGui::PushID(bit);
-				if (ImGui::Checkbox("##fingerbit", &enabled)) {
-					if (enabled) cfg_.finger_mask |= (uint16_t)(1u << bit);
-					else cfg_.finger_mask &= (uint16_t)~(1u << bit);
-					dirty = true;
-				}
-				ImGui::PopID();
+		openvr_pair::ui::Card("Driver connection", nullptr, [&]() {
+			openvr_pair::ui::StatusDot(connectError_.c_str(), openvr_pair::ui::Status::Danger);
+			if (ImGui::Button("Retry connection")) {
+				ConnectIfNeeded();
+				SendConfig();
 			}
+		});
+	}
+
+	openvr_pair::ui::Card("Finger smoothing", nullptr, [&]() {
+		if (openvr_pair::ui::ToggleSwitch("Enable finger smoothing", &cfg_.master_enabled)) dirty_ = true;
+		ImGui::BeginDisabled(!cfg_.master_enabled);
+
+		const char *finger_labels[5] = { "Thumb", "Index", "Middle", "Ring", "Pinky" };
+		const char *hand_labels[2] = { "Left", "Right" };
+		if (ImGui::BeginTable("fingers_grid", 6,
+			ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
+		{
+			ImGui::TableSetupColumn("Hand");
+			for (int f = 0; f < 5; ++f) ImGui::TableSetupColumn(finger_labels[f]);
+			ImGui::TableHeadersRow();
+			for (int hand = 0; hand < 2; ++hand) {
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(hand_labels[hand]);
+				for (int finger = 0; finger < 5; ++finger) {
+					const int bit = hand * 5 + finger;
+					ImGui::TableNextColumn();
+					bool enabled = ((cfg_.finger_mask >> bit) & 1) != 0;
+					ImGui::PushID(bit);
+					if (ImGui::Checkbox("##fingerbit", &enabled)) {
+						if (enabled) cfg_.finger_mask |= static_cast<uint16_t>(1u << bit);
+						else cfg_.finger_mask &= static_cast<uint16_t>(~(1u << bit));
+						dirty_ = true;
+					}
+					ImGui::PopID();
+				}
+			}
+			ImGui::EndTable();
 		}
-		ImGui::EndTable();
-	}
 
-	if (ImGui::Button("Enable all fingers")) {
-		cfg_.finger_mask = protocol::kAllFingersMask;
-		dirty = true;
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Disable all fingers")) {
-		cfg_.finger_mask = 0;
-		dirty = true;
-	}
+		if (ImGui::Button("Enable all")) {
+			cfg_.finger_mask = protocol::kAllFingersMask;
+			dirty_ = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Disable all")) {
+			cfg_.finger_mask = 0;
+			dirty_ = true;
+		}
 
-	ImGui::EndDisabled();
+		int smoothness = cfg_.smoothness;
+		if (ImGui::SliderInt("Smoothness", &smoothness, 0, 100, "%d%%")) {
+			cfg_.smoothness = smoothness;
+			dirty_ = true;
+		}
 
-	ImGui::Separator();
-	ImGui::TextUnformatted("Prediction smoothing");
-	static int predictionSmoothness = 0;
-	ImGui::SliderInt("Pose prediction smoothness", &predictionSmoothness, 0, 100, "%d%%");
+		ImGui::EndDisabled();
 
-	if (dirty) {
-		SaveConfig(cfg_);
-		SendConfig();
-	}
+		ImGui::BeginDisabled(!dirty_);
+		if (ImGui::Button("Apply")) {
+			SaveConfig(cfg_);
+			SendConfig();
+			dirty_ = false;
+		}
+		ImGui::EndDisabled();
+	});
 }
 
 namespace openvr_pair::overlay {
