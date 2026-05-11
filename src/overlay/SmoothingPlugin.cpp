@@ -2,6 +2,7 @@
 
 #include "Protocol.h"
 #include "ShellContext.h"
+#include "ShellFooter.h"
 
 #include <openvr.h>
 
@@ -234,6 +235,11 @@ void SmoothingPlugin::DrawTab(openvr_pair::overlay::ShellContext &)
 		}
 		ImGui::EndTabBar();
 	}
+
+	openvr_pair::overlay::ShellFooterStatus footer;
+	footer.driverConnected = ipc_.IsConnected();
+	footer.driverLabel = "Smoothing driver";
+	openvr_pair::overlay::DrawShellFooter(footer);
 }
 
 void SmoothingPlugin::DrawPredictionTab()
@@ -303,11 +309,10 @@ void SmoothingPlugin::DrawPredictionTab()
 		"running Space Calibrator, do not suppress your calibration reference or target "
 		"trackers either: doing so corrupts the calibration math that reads their velocity.");
 	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::TextDisabled("Per-tracker smoothness");
+	ImGui::SeparatorText("Per-tracker smoothness");
 	ImGui::TextWrapped(
-		"Settings stick to a tracker by serial number, so a device that disconnects and "
-		"reconnects keeps its slider value.");
+		"Settings stick to a tracker by serial number, so a device that "
+		"disconnects and reconnects keeps its slider value.");
 	ImGui::Spacing();
 
 	auto *vrSystem = vr::VRSystem();
@@ -382,22 +387,31 @@ void SmoothingPlugin::DrawFingersTab()
 {
 	bool dirty = false;
 
-	ImGui::TextDisabled("(Index Knuckles only -- smooths per-frame finger bone updates before VRChat sees them.)");
+	ImGui::TextWrapped(
+		"Index Knuckles only. The driver hooks each per-frame skeletal update "
+		"and slerps every bone toward the incoming pose, so what reaches "
+		"VRChat (and any other consumer of /input/skeleton) is the smoothed "
+		"signal.");
 	ImGui::Spacing();
 
+	ImGui::SeparatorText("Master");
+	ImGui::Indent();
 	if (ImGui::Checkbox("Enable finger smoothing", &cfg_.master_enabled)) dirty = true;
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip(
-			"Master kill switch. When off, the driver passes Knuckles bone\n"
-			"arrays through untouched -- exactly the same behaviour as a build\n"
-			"without the finger-smoothing feature compiled in.");
+			"Off = the driver passes Knuckles bone arrays through untouched.\n"
+			"Exactly the same behaviour as a build without finger smoothing.");
 	}
+	ImGui::Unindent();
 
 	ImGui::Spacing();
 	ImGui::BeginDisabled(!cfg_.master_enabled);
 
+	ImGui::SeparatorText("Strength");
+	ImGui::Indent();
 	int smoothness = cfg_.smoothness;
-	if (ImGui::SliderInt("Strength##fingers", &smoothness, 0, 100, "%d%%")) {
+	ImGui::SetNextItemWidth(260.0f);
+	if (ImGui::SliderInt("##fingers_strength", &smoothness, 0, 100, "%d%%")) {
 		if (smoothness < 0) smoothness = 0;
 		if (smoothness > 100) smoothness = 100;
 		cfg_.smoothness = smoothness;
@@ -410,10 +424,15 @@ void SmoothingPlugin::DrawFingersTab()
 			"100 = heavy lag (slerp factor 0.05 per frame). Never fully freezes.\n"
 			"Drag the slider live and feel the change immediately in-game.");
 	}
+	ImGui::Unindent();
 
 	ImGui::Spacing();
-	ImGui::Text("Per-finger toggles (uncheck to bypass that finger only)");
-	ImGui::TextDisabled("Useful for isolating a finger whose smoothing produces an artifact.");
+	ImGui::SeparatorText("Per-finger bypass");
+	ImGui::TextWrapped(
+		"Uncheck a finger to pass it through raw. Useful for isolating one "
+		"finger whose smoothing produces an artifact without giving up the "
+		"feature on the other nine.");
+	ImGui::Spacing();
 
 	const char *fingerLabels[5] = { "Thumb", "Index", "Middle", "Ring", "Pinky" };
 	const char *handLabels[2] = { "Left", "Right" };
