@@ -53,6 +53,13 @@ void SmoothingPlugin::SendConfig()
 	req.setFingerSmoothing.smoothness = (uint8_t)cfg_.smoothness;
 	req.setFingerSmoothing.finger_mask = cfg_.finger_mask;
 	req.setFingerSmoothing._reserved = 0;
+	for (int i = 0; i < 10; ++i) {
+		int v = std::clamp(cfg_.per_finger_smoothness[i], 0, 100);
+		cfg_.per_finger_smoothness[i] = v;
+		req.setFingerSmoothing.per_finger_smoothness[i] = (uint8_t)v;
+	}
+	req.setFingerSmoothing._reserved2[0] = 0;
+	req.setFingerSmoothing._reserved2[1] = 0;
 	try {
 		ipc_.SendBlocking(req);
 		connectError_.clear();

@@ -70,6 +70,13 @@ SmoothingConfig LoadConfig()
         } else if (strcmp(key, "finger_mask") == 0) {
             unsigned n = (unsigned)strtoul(val, nullptr, 0);
             cfg.finger_mask = (uint16_t)(n & 0xFFFFu);
+        } else if (strncmp(key, "per_finger_smoothness.", 22) == 0) {
+            // Key format: per_finger_smoothness.<index>. Value: 0..100.
+            int idx = atoi(key + 22);
+            int n   = atoi(val);
+            if (n < 0) n = 0;
+            if (n > 100) n = 100;
+            if (idx >= 0 && idx < 10) cfg.per_finger_smoothness[idx] = n;
         } else if (strncmp(key, "tracker_smoothness.", 19) == 0) {
             // Key format: tracker_smoothness.<serial>. Value: 0..100.
             // Serials are alphanumeric/short so no escaping needed in either
@@ -94,6 +101,13 @@ void SaveConfig(const SmoothingConfig &cfg)
     fprintf(f, "master_enabled=%d\n", cfg.master_enabled ? 1 : 0);
     fprintf(f, "smoothness=%d\n", cfg.smoothness);
     fprintf(f, "finger_mask=%u\n", (unsigned)cfg.finger_mask);
+    for (int i = 0; i < 10; ++i) {
+        // Only write non-zero entries so the on-disk file stays small and a
+        // hand-edit removing a line restores the global-fallback default.
+        if (cfg.per_finger_smoothness[i] > 0) {
+            fprintf(f, "per_finger_smoothness.%d=%d\n", i, cfg.per_finger_smoothness[i]);
+        }
+    }
     for (const auto &kv : cfg.trackerSmoothness) {
         // 0 values are dropped from the map on slider release; anything
         // still here is meaningful and should round-trip.

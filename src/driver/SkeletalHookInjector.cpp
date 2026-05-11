@@ -288,17 +288,6 @@ static int FingerIndexForBone(uint32_t bone)
     return -1;
 }
 
-// Determine whether bone `bone` on hand `handedness` (0=left, 1=right) should
-// be smoothed given the per-finger mask. Non-finger bones (root, wrist, aux)
-// always pass through.
-static bool ShouldSmoothBone(uint32_t bone, int handedness, uint16_t mask)
-{
-    int finger = FingerIndexForBone(bone);
-    if (finger < 0) return false;
-    int bit = handedness * 5 + finger;
-    return ((mask >> bit) & 1) != 0;
-}
-
 // User-visible smoothness 0..100 -> slerp factor 1.0..0.05.
 //   0   -> alpha 1.0   (raw passthrough; current frame snaps)
 //   100 -> alpha 0.05  (heavy smoothing; never fully freezes)
@@ -543,13 +532,26 @@ static vr::EVRInputError DetourPublicUpdateSkeletonComponent(
     // skeleton traffic is actually flowing -- silent when driver is idle.
     MaybeLogDeepState("UpdateSkeleton");
 
-    if (!cfg.master_enabled || cfg.smoothness == 0) {
+    // v13: resolve effective smoothness per finger. Per-finger value of 0 means
+    // "fall back to the global cfg.smoothness" -- so an all-zero array reproduces
+    // v12 behaviour exactly. Precompute the alpha for each of the 5 fingers on
+    // this hand once per call so the per-bone inner loop is just a lookup.
+    const int handBase = handedness * 5;
+    float alphaPerFinger[5];
+    bool anySmoothing = false;
+    for (int f = 0; f < 5; ++f) {
+        uint8_t s = cfg.per_finger_smoothness[handBase + f];
+        if (s == 0) s = cfg.smoothness;
+        alphaPerFinger[f] = SmoothnessToAlpha(s);
+        if (s != 0) anySmoothing = true;
+    }
+
+    if (!cfg.master_enabled || !anySmoothing) {
         g_stats[handedness].passthroughCalls.fetch_add(1, std::memory_order_relaxed);
         MaybeLogStats("UpdateSkeleton");
         return PublicUpdateSkeletonHook.originalFunc(_this, ulComponent, eMotionRange, pTransforms, unTransformCount);
     }
 
-    float alpha = SmoothnessToAlpha(cfg.smoothness);
     vr::VRBoneTransform_t smoothed[31];
 
     {
@@ -564,7 +566,16 @@ static vr::EVRInputError DetourPublicUpdateSkeletonComponent(
             state.initialized = true;
         } else {
             for (uint32_t i = 0; i < 31; ++i) {
-                if (!ShouldSmoothBone(i, handedness, cfg.finger_mask)) {
+                int finger = FingerIndexForBone(i);
+                bool inMask = finger >= 0 && (((cfg.finger_mask >> (handBase + finger)) & 1u) != 0);
+                if (!inMask) {
+                    smoothed[i] = pTransforms[i];
+                    state.previous[i] = pTransforms[i];
+                    continue;
+                }
+                const float alpha = alphaPerFinger[finger];
+                if (alpha >= 1.0f) {
+                    // Effective smoothness 0 -> passthrough this finger.
                     smoothed[i] = pTransforms[i];
                     state.previous[i] = pTransforms[i];
                     continue;
