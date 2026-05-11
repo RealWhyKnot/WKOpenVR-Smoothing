@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve OpenVR-Smoothing. Keep changes focused and easy to review.
+Thanks for helping improve OpenVR-WKSmoothing. Keep changes focused and easy to review.
 
 ## Before opening an issue
 

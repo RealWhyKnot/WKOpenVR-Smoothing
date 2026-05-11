@@ -3,7 +3,7 @@
 #include <cstdint>
 
 // Persisted finger-smoothing UI state. Saved to
-// %LocalAppDataLow%\OpenVR-Smoothing\config.txt as plain key=value lines so
+// %LocalAppDataLow%\OpenVR-WKSmoothing\config.txt as plain key=value lines so
 // it's trivially editable by hand if needed.
 struct SmoothingConfig
 {

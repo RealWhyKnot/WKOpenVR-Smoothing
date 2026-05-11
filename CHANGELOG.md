@@ -1,13 +1,13 @@
 # Changelog
 
-All notable user-visible changes to OpenVR-Smoothing. The "Unreleased" section is auto-appended by `.github/workflows/changelog-append.yml` from conventional-commit subjects on `main`; tagged sections are promoted by `.github/workflows/release.yml` on a `v*` tag push.
+All notable user-visible changes to OpenVR-WKSmoothing. The "Unreleased" section is auto-appended by `.github/workflows/changelog-append.yml` from conventional-commit subjects on `main`; tagged sections are promoted by `.github/workflows/release.yml` on a `v*` tag push.
 
 The release body for each tag is composed mechanically from the slice between the prior tag and the new tag plus the templated sections under `.github/release-template/`. Hand-writing release bodies is not part of the workflow.
 
 ## Unreleased
 
 ### Added
-- Rebuild as smoothing config UI for OpenVR-PairDriver (6da0497)
+- Rebuild as smoothing config UI for OpenVR-WKPairDriver (6da0497)
 - **repo:** Own Smoothing driver source and overlay tab plugin (1c67a47)
 - **overlay:** Rebuild smoothing plugin around shell card widgets (3d97ba4)
 

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-project("OpenVR-Smoothing")
+project("OpenVR-WKSmoothing")
 
 # Centralised output directory for built artifacts -- keeps the post-build
 # zip-staging logic in build.ps1 simple.
@@ -15,7 +15,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/artifacts)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
 # Treat warnings on shape-mismatch / missing-return / printf format as errors.
-# Mirrors the OpenVR-PairDriver and OpenVR-SpaceCalibrator warning sets.
+# Mirrors the OpenVR-WKPairDriver and OpenVR-WKSpaceCalibrator warning sets.
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
     add_compile_options(
         /we4715 /we4828

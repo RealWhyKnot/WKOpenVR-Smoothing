@@ -57,10 +57,10 @@ jobs:
         run: |
           $stage = "stage"
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          if (Test-Path "bin/artifacts/Release/OpenVR-Smoothing.exe") {
-              Copy-Item -Path "bin/artifacts/Release/OpenVR-Smoothing.exe" -Destination $stage
+          if (Test-Path "bin/artifacts/Release/OpenVR-WKSmoothing.exe") {
+              Copy-Item -Path "bin/artifacts/Release/OpenVR-WKSmoothing.exe" -Destination $stage
           } else {
-              Write-Host "::warning::OpenVR-Smoothing.exe not found at bin/artifacts/Release/. Skipping stage."
+              Write-Host "::warning::OpenVR-WKSmoothing.exe not found at bin/artifacts/Release/. Skipping stage."
           }
 
       - name: Upload artifacts

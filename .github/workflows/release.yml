@@ -64,10 +64,10 @@ jobs:
         id: zip
         shell: pwsh
         run: |
-          $zip = Get-ChildItem release/OpenVR-Smoothing-*.zip | Select-Object -First 1
+          $zip = Get-ChildItem release/OpenVR-WKSmoothing-*.zip | Select-Object -First 1
           if (-not $zip) { throw "No release zip found in release/ -- build.ps1 -Release did not produce one." }
           $hash = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash
-          $manifest = Get-ChildItem release/OpenVR-Smoothing-*.manifest.tsv | Select-Object -First 1
+          $manifest = Get-ChildItem release/OpenVR-WKSmoothing-*.manifest.tsv | Select-Object -First 1
           if (-not $manifest) { throw "No manifest found in release/ -- build.ps1 -Release did not produce one." }
           "path=$($zip.FullName)"           >> $env:GITHUB_OUTPUT
           "name=$($zip.Name)"               >> $env:GITHUB_OUTPUT
@@ -96,8 +96,8 @@ jobs:
           & $makensis "/DVERSION=$version" installer.nsi
           if ($LASTEXITCODE -ne 0) { throw "makensis exited $LASTEXITCODE" }
           Pop-Location
-          $installer = Get-ChildItem install/OpenVR-Smoothing-Setup.exe
-          $versioned = "release/OpenVR-Smoothing-v$version-Setup.exe"
+          $installer = Get-ChildItem install/OpenVR-WKSmoothing-Setup.exe
+          $versioned = "release/OpenVR-WKSmoothing-v$version-Setup.exe"
           Move-Item $installer.FullName $versioned -Force
           $hash = (Get-FileHash $versioned -Algorithm SHA256).Hash
           "path=$((Resolve-Path $versioned).Path)" >> $env:GITHUB_OUTPUT

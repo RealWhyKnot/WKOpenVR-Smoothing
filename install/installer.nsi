@@ -1,4 +1,4 @@
-; OpenVR-Smoothing module installer.
+; OpenVR-WKSmoothing module installer.
 ; Enables the Smoothing module in an existing OpenVR-Pair install.
 
 !include "MUI2.nsh"
@@ -7,16 +7,16 @@
 	!define VERSION "0.1.0.0"
 !endif
 
-Name "OpenVR-Smoothing"
-OutFile "..\build\artifacts\Release\OpenVR-Smoothing-Installer.exe"
-InstallDir "$PROGRAMFILES64\OpenVR-Pair\features\OpenVR-Smoothing"
+Name "OpenVR-WKSmoothing"
+OutFile "..\build\artifacts\Release\OpenVR-WKSmoothing-Installer.exe"
+InstallDir "$PROGRAMFILES64\OpenVR-Pair\features\OpenVR-WKSmoothing"
 RequestExecutionLevel admin
 ShowInstDetails show
 
 VIProductVersion "${VERSION}"
-VIAddVersionKey /LANG=1033 "ProductName" "OpenVR-Smoothing"
-VIAddVersionKey /LANG=1033 "FileDescription" "OpenVR-Smoothing Module Installer"
-VIAddVersionKey /LANG=1033 "LegalCopyright" "MIT, https://github.com/RealWhyKnot/OpenVR-Smoothing"
+VIAddVersionKey /LANG=1033 "ProductName" "OpenVR-WKSmoothing"
+VIAddVersionKey /LANG=1033 "FileDescription" "OpenVR-WKSmoothing Module Installer"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "MIT, https://github.com/RealWhyKnot/OpenVR-WKSmoothing"
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
 
@@ -30,8 +30,8 @@ Var vrRuntimePath
 
 Function RequirePair
 	IfFileExists "$PROGRAMFILES64\OpenVR-Pair\OpenVR-Pair.exe" done
-		MessageBox MB_YESNO|MB_ICONEXCLAMATION "OpenVR-Pair must be installed before OpenVR-Smoothing. Open the OpenVR-Pair releases page now?" IDNO abort
-		ExecShell "open" "https://github.com/RealWhyKnot/OpenVR-PairDriver/releases"
+		MessageBox MB_YESNO|MB_ICONEXCLAMATION "OpenVR-Pair must be installed before OpenVR-WKSmoothing. Open the OpenVR-Pair releases page now?" IDNO abort
+		ExecShell "open" "https://github.com/RealWhyKnot/OpenVR-WKPairDriver/releases"
 	abort:
 		Abort
 	done:
@@ -81,22 +81,22 @@ Section "Install"
 
 	SetOutPath "$INSTDIR"
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
-	WriteRegStr HKLM "Software\OpenVR-Smoothing\Main" "" "$INSTDIR"
-	WriteRegStr HKLM "Software\OpenVR-Smoothing\Driver" "" "$vrRuntimePath"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-Smoothing" "DisplayName" "OpenVR-Smoothing"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-Smoothing" "DisplayVersion" "${VERSION}"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-Smoothing" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+	WriteRegStr HKLM "Software\OpenVR-WKSmoothing\Main" "" "$INSTDIR"
+	WriteRegStr HKLM "Software\OpenVR-WKSmoothing\Driver" "" "$vrRuntimePath"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-WKSmoothing" "DisplayName" "OpenVR-WKSmoothing"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-WKSmoothing" "DisplayVersion" "${VERSION}"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-WKSmoothing" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
 SectionEnd
 
 Section "Uninstall"
-	ReadRegStr $vrRuntimePath HKLM "Software\OpenVR-Smoothing\Driver" ""
+	ReadRegStr $vrRuntimePath HKLM "Software\OpenVR-WKSmoothing\Driver" ""
 	StrCmp $vrRuntimePath "" skipFlag
 	Delete "$vrRuntimePath\drivers\01openvrpair\resources\enable_smoothing.flag"
 	skipFlag:
 	Delete "$INSTDIR\Uninstall.exe"
 	RMDir "$INSTDIR"
-	DeleteRegKey HKLM "Software\OpenVR-Smoothing\Driver"
-	DeleteRegKey HKLM "Software\OpenVR-Smoothing\Main"
-	DeleteRegKey /ifempty HKLM "Software\OpenVR-Smoothing"
-	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-Smoothing"
+	DeleteRegKey HKLM "Software\OpenVR-WKSmoothing\Driver"
+	DeleteRegKey HKLM "Software\OpenVR-WKSmoothing\Main"
+	DeleteRegKey /ifempty HKLM "Software\OpenVR-WKSmoothing"
+	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenVR-WKSmoothing"
 SectionEnd

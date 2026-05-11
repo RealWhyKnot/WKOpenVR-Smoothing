@@ -26,7 +26,7 @@ The release body is the verbatim output of
 [Generate-ReleaseNotes.ps1](scripts/Generate-ReleaseNotes.ps1). Layout:
 
 ```
-# OpenVR-Smoothing <tag>
+# OpenVR-WKSmoothing <tag>
 
 ## What's Changed
 

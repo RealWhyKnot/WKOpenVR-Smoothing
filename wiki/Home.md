@@ -1,13 +1,13 @@
-# OpenVR-Smoothing
+# OpenVR-WKSmoothing
 
 SteamVR driver and overlay for smoothing Valve Index controller finger-tracking jitter.
 
 ## Start here
 
-- [Project README](https://github.com/RealWhyKnot/OpenVR-Smoothing#readme)
+- [Project README](https://github.com/RealWhyKnot/OpenVR-WKSmoothing#readme)
 - [Changelog](Changelog)
-- [Issues](https://github.com/RealWhyKnot/OpenVR-Smoothing/issues)
-- [Releases](https://github.com/RealWhyKnot/OpenVR-Smoothing/releases)
+- [Issues](https://github.com/RealWhyKnot/OpenVR-WKSmoothing/issues)
+- [Releases](https://github.com/RealWhyKnot/OpenVR-WKSmoothing/releases)
 
 ## Maintainer notes
 

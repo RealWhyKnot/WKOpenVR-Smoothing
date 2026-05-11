@@ -8,7 +8,7 @@ param(
     # at $InstallPath. Self-elevates so you don't need an admin shell first.
     [switch]$Install,
 
-    # Full deploy: closes Steam, builds the OpenVR-PairDriver submodule,
+    # Full deploy: closes Steam, builds the OpenVR-WKPairDriver submodule,
     # copies the shared driver tree into <SteamVR>/drivers/01openvrpair/,
     # drops enable_smoothing.flag, hot-swaps the overlay (implies -Install),
     # then relaunches Steam. Self-elevates for the admin operations.
@@ -16,7 +16,7 @@ param(
 
     # Where the install lives. Override only if installed somewhere
     # non-default.
-    [string]$InstallPath = "C:\Program Files\OpenVR-Smoothing",
+    [string]$InstallPath = "C:\Program Files\OpenVR-WKSmoothing",
 
     # Where Steam lives. Required for -DeployDriver.
     [string]$SteamPath = "C:\Program Files (x86)\Steam",
@@ -37,12 +37,12 @@ if (($Install -or $DeployDriver) -and -not $Yes) {
     if ($DeployDriver) {
         Write-Host "  - Close Steam (incl. any running game)" -ForegroundColor Yellow
         Write-Host "  - Force-kill SteamVR helpers" -ForegroundColor Yellow
-        Write-Host "  - Close the OpenVR-Smoothing overlay" -ForegroundColor Yellow
+        Write-Host "  - Close the OpenVR-WKSmoothing overlay" -ForegroundColor Yellow
         Write-Host "  - Build + copy the shared driver tree into SteamVR\drivers\01openvrpair (UAC)" -ForegroundColor Yellow
         Write-Host "  - Hot-swap the overlay into $InstallPath (UAC)" -ForegroundColor Yellow
         Write-Host "  - Relaunch Steam" -ForegroundColor Yellow
     } else {
-        Write-Host "  - Close the OpenVR-Smoothing overlay (if running)" -ForegroundColor Yellow
+        Write-Host "  - Close the OpenVR-WKSmoothing overlay (if running)" -ForegroundColor Yellow
         Write-Host "  - Hot-swap the overlay into $InstallPath (UAC)" -ForegroundColor Yellow
     }
     Write-Host ""
@@ -67,7 +67,7 @@ if ($exitCode -ne 0) {
 }
 
 $ArtifactsDir = Join-Path $PSScriptRoot "build/artifacts/Release"
-$Overlay      = Join-Path $ArtifactsDir "OpenVR-Smoothing.exe"
+$Overlay      = Join-Path $ArtifactsDir "OpenVR-WKSmoothing.exe"
 if (-not (Test-Path $Overlay)) {
     throw "Build said it succeeded but $Overlay isn't there."
 }
@@ -87,7 +87,7 @@ if (-not $Install) {
 }
 
 # Driver-deploy paths
-$PairDriverRoot   = Join-Path $PSScriptRoot "lib/OpenVR-PairDriver"
+$PairDriverRoot   = Join-Path $PSScriptRoot "lib/OpenVR-WKPairDriver"
 $PairDriverTree   = Join-Path $PairDriverRoot "build/driver_openvrpair"
 $PairDriverDll    = Join-Path $PairDriverTree "bin/win64/driver_openvrpair.dll"
 $SteamExe         = Join-Path $SteamPath "steam.exe"
@@ -104,10 +104,10 @@ $LegacyFsManifest = Join-Path $SteamDriversDir "01fingersmoothing/driver.vrdrive
 
 if ($DeployDriver) {
     if (-not (Test-Path $PairDriverRoot)) {
-        throw "OpenVR-PairDriver submodule not found at '$PairDriverRoot'. Run 'git submodule update --init --recursive'."
+        throw "OpenVR-WKPairDriver submodule not found at '$PairDriverRoot'. Run 'git submodule update --init --recursive'."
     }
     Write-Host ""
-    Write-Host "--- Building OpenVR-PairDriver submodule ---" -ForegroundColor Cyan
+    Write-Host "--- Building OpenVR-WKPairDriver submodule ---" -ForegroundColor Cyan
     Push-Location $PairDriverRoot
     try {
         & (Join-Path $PairDriverRoot "build.ps1")
@@ -151,12 +151,12 @@ if (-not (Test-Path $InstallPath)) {
     throw "Install path '$InstallPath' doesn't exist. Either install via the NSIS installer first, or pass -InstallPath '<your path>'."
 }
 
-$RuntimeFiles = @("OpenVR-Smoothing.exe")
+$RuntimeFiles = @("OpenVR-WKSmoothing.exe")
 $copyCmds = $RuntimeFiles | ForEach-Object {
     "Copy-Item -Force -Path '$ArtifactsDir\$_' -Destination '$InstallPath\$_'"
 }
 
-$wasRunning = @(Get-Process -Name OpenVR-Smoothing -ErrorAction SilentlyContinue).Count -gt 0
+$wasRunning = @(Get-Process -Name OpenVR-WKSmoothing -ErrorAction SilentlyContinue).Count -gt 0
 
 # When -DeployDriver is on, the elevated block also installs the shared
 # driver and drops enable_smoothing.flag. Pre-existing 01openvrpair gets
@@ -179,7 +179,7 @@ if ($DeployDriver) {
 }
 
 $elevatedScript = @"
-Stop-Process -Name OpenVR-Smoothing -Force -ErrorAction SilentlyContinue
+Stop-Process -Name OpenVR-WKSmoothing -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 $($copyCmds -join "`n")
 $($extraCmds -join "`n")

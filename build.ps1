@@ -56,7 +56,7 @@ if (-not $SkipConfigure) {
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
 # Verify the artifact lands where we expect.
-$exePath = "build/artifacts/Release/OpenVR-Smoothing.exe"
+$exePath = "build/artifacts/Release/OpenVR-WKSmoothing.exe"
 if (-not (Test-Path $exePath)) {
     throw "Expected overlay exe not found at $exePath"
 }
@@ -66,12 +66,12 @@ Write-Host ("Built {0} ({1:N0} bytes, {2})" -f $exe.Name, $exe.Length, $exe.Last
 Write-Host ("  -> {0}" -f $exe.FullName)
 
 if ($Release) {
-    # Build the OpenVR-PairDriver submodule so its driver tree is available
+    # Build the OpenVR-WKPairDriver submodule so its driver tree is available
     # to bundle into the release zip.
-    $PairDriverRoot = Join-Path $PSScriptRoot "lib/OpenVR-PairDriver"
+    $PairDriverRoot = Join-Path $PSScriptRoot "lib/OpenVR-WKPairDriver"
     $PairDriverTree = Join-Path $PairDriverRoot "build/driver_openvrpair"
     Write-Host ""
-    Write-Host "--- Building OpenVR-PairDriver submodule ---" -ForegroundColor Cyan
+    Write-Host "--- Building OpenVR-WKPairDriver submodule ---" -ForegroundColor Cyan
     Push-Location $PairDriverRoot
     try {
         & (Join-Path $PairDriverRoot "build.ps1") -Version $Version
@@ -86,7 +86,7 @@ if ($Release) {
     New-Item -ItemType Directory -Force -Path "release" | Out-Null
 
     # Stage the release tree:
-    #   <stage>/OpenVR-Smoothing.exe
+    #   <stage>/OpenVR-WKSmoothing.exe
     #   <stage>/01openvrpair/...                 (driver tree)
     #   <stage>/01openvrpair/resources/enable_smoothing.flag
     #   <stage>/version.txt
@@ -111,14 +111,14 @@ if ($Release) {
     Set-Content -Path (Join-Path $StagedFlagDir "enable_smoothing.flag") -Value 'enabled' -NoNewline
     $Version | Set-Content -Path (Join-Path $StageDir "version.txt") -Encoding UTF8 -NoNewline
 
-    $zipName = "OpenVR-Smoothing-v$Version.zip"
+    $zipName = "OpenVR-WKSmoothing-v$Version.zip"
     $zipPath = Join-Path "release" $zipName
     if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
     Compress-Archive -Path (Join-Path $StageDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
     $zipItem = Get-Item $zipPath
 
     # Per-file SHA256 manifest (no BOM) for the File integrity table.
-    $manifestName = "OpenVR-Smoothing-v$Version.manifest.tsv"
+    $manifestName = "OpenVR-WKSmoothing-v$Version.manifest.tsv"
     $manifestPath = Join-Path "release" $manifestName
     $rootLength = (Resolve-Path $StageDir).Path.Length + 1
     $rows = Get-ChildItem $StageDir -Recurse -File | ForEach-Object {

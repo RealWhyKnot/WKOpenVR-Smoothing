@@ -1,4 +1,4 @@
-OpenVR-Smoothing -- copyright and third-party notices
+OpenVR-WKSmoothing -- copyright and third-party notices
 
 Project copyright:
   Copyright (C) 2026 WhyKnot and other contributors
@@ -7,16 +7,16 @@ Project copyright:
 
 This product is licensed under the GNU General Public License v3.0
 (see LICENSE). Portions of the driver/overlay scaffolding, build/install
-scripts, and IPC framework derive from OpenVR-SpaceCalibrator, used and
+scripts, and IPC framework derive from OpenVR-WKSpaceCalibrator, used and
 modified under the terms of its MIT license; the upstream MIT-licensed
 code remains available under MIT terms from
-https://github.com/RealWhyKnot/OpenVR-SpaceCalibrator.
+https://github.com/RealWhyKnot/OpenVR-WKSpaceCalibrator.
 
 This product also bundles or links the following third-party components,
 each used under its own license, reproduced below.
 
 Source code for this build (including the MPL-2.0 portions of Eigen) is
-available at https://github.com/RealWhyKnot/OpenVR-Smoothing.
+available at https://github.com/RealWhyKnot/OpenVR-WKSmoothing.
 
 ================================================================================
 OpenVR SDK (BSD-3-Clause)
@@ -177,7 +177,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ================================================================================
 MinHook (BSD-2-Clause)
-Statically linked into the OpenVR-PairDriver DLL shipped with this product.
+Statically linked into the OpenVR-WKPairDriver DLL shipped with this product.
 Source: https://github.com/TsudaKageyu/minhook
 Includes: Hacker Disassembler Engine 32/64 (Vyacheslav Patkov, BSD-2-Clause)
 ================================================================================
@@ -266,7 +266,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
 Eigen (MPL-2.0 components only)
-Statically linked into the OpenVR-PairDriver DLL shipped with this product.
+Statically linked into the OpenVR-WKPairDriver DLL shipped with this product.
 Source: https://gitlab.com/libeigen/eigen
 ================================================================================
 

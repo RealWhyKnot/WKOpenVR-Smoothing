@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(SMOOTHING_PAIRDRIVER_ROOT "${OPENVR_PAIRDRIVER_ROOT}" CACHE PATH "OpenVR-PairDriver checkout")
+set(SMOOTHING_PAIRDRIVER_ROOT "${OPENVR_PAIRDRIVER_ROOT}" CACHE PATH "OpenVR-WKPairDriver checkout")
 get_filename_component(SMOOTHING_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 if(NOT SMOOTHING_PAIRDRIVER_ROOT)
-	set(_sibling_pairdriver "${CMAKE_CURRENT_LIST_DIR}/../../../OpenVR-PairDriver")
+	set(_sibling_pairdriver "${CMAKE_CURRENT_LIST_DIR}/../../../OpenVR-WKPairDriver")
 	if(EXISTS "${_sibling_pairdriver}/src/overlay/FeaturePlugin.h")
 		get_filename_component(SMOOTHING_PAIRDRIVER_ROOT "${_sibling_pairdriver}" ABSOLUTE)
 	else()
-		get_filename_component(SMOOTHING_PAIRDRIVER_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../lib/OpenVR-PairDriver" ABSOLUTE)
+		get_filename_component(SMOOTHING_PAIRDRIVER_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../lib/OpenVR-WKPairDriver" ABSOLUTE)
 	endif()
 endif()
 
