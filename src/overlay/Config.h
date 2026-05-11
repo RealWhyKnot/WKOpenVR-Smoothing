@@ -1,15 +1,25 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 
-// Persisted finger-smoothing UI state. Saved to
-// %LocalAppDataLow%\OpenVR-WKSmoothing\config.txt as plain key=value lines so
-// it's trivially editable by hand if needed.
+// Persisted Smoothing overlay state. Saved to
+// %LocalAppDataLow%\OpenVR-Pair\profiles\smoothing.txt as plain key=value
+// lines so it's trivially editable by hand if needed.
 struct SmoothingConfig
 {
+    // Finger smoothing (Index Knuckles bone arrays).
     bool     master_enabled = false;
     int      smoothness     = 50;          // 0..100
     uint16_t finger_mask    = 0x03FF;      // protocol::kAllFingersMask -- all 10 fingers
+
+    // Per-tracker pose-prediction suppression, keyed by serial number so
+    // values survive a device reconnecting under a fresh OpenVR ID. 0..100;
+    // serials absent from the map are treated as 0 (off). Driver applies
+    // (1 - value/100) to velocity / acceleration / poseTimeOffset at pose
+    // update time.
+    std::unordered_map<std::string, int> trackerSmoothness;
 };
 
 // Load from disk. On any read / parse error the on-disk file is ignored and

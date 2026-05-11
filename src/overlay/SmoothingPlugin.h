@@ -22,6 +22,19 @@ private:
 	SmoothingIPCClient ipc_;
 	std::string connectError_;
 
+	// Cached state for the external-smoothing-tool banner shown in the
+	// Prediction sub-tab. Updated by Tick() at most every 5 seconds; the UI
+	// reads them directly without further synchronisation since draw +
+	// detection both run on the main thread.
+	bool externalSmoothingDetected_ = false;
+	std::string externalSmoothingToolName_;
+	double lastExternalScanSeconds_ = 0.0;
+
 	void ConnectIfNeeded();
-	void SendConfig();
+	void SendConfig();                                        // finger smoothing config
+	void SendDevicePrediction(uint32_t openVRID, int smoothness); // per-device prediction
+	void ReplayDevicePredictions();                           // resend whole map on connect
+	void TickExternalToolDetection();
+	void DrawPredictionTab();
+	void DrawFingersTab();
 };

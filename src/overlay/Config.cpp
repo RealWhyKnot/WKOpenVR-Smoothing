@@ -70,6 +70,14 @@ SmoothingConfig LoadConfig()
         } else if (strcmp(key, "finger_mask") == 0) {
             unsigned n = (unsigned)strtoul(val, nullptr, 0);
             cfg.finger_mask = (uint16_t)(n & 0xFFFFu);
+        } else if (strncmp(key, "tracker_smoothness.", 19) == 0) {
+            // Key format: tracker_smoothness.<serial>. Value: 0..100.
+            // Serials are alphanumeric/short so no escaping needed in either
+            // half of the key=value line.
+            int n = atoi(val);
+            if (n < 0) n = 0;
+            if (n > 100) n = 100;
+            if (n > 0) cfg.trackerSmoothness[std::string(key + 19)] = n;
         }
     }
     fclose(f);
@@ -86,5 +94,10 @@ void SaveConfig(const SmoothingConfig &cfg)
     fprintf(f, "master_enabled=%d\n", cfg.master_enabled ? 1 : 0);
     fprintf(f, "smoothness=%d\n", cfg.smoothness);
     fprintf(f, "finger_mask=%u\n", (unsigned)cfg.finger_mask);
+    for (const auto &kv : cfg.trackerSmoothness) {
+        // 0 values are dropped from the map on slider release; anything
+        // still here is meaningful and should round-trip.
+        fprintf(f, "tracker_smoothness.%s=%d\n", kv.first.c_str(), kv.second);
+    }
     fclose(f);
 }

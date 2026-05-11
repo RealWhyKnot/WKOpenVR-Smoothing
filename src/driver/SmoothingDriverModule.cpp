@@ -43,10 +43,18 @@ public:
 	bool HandleRequest(const protocol::Request &request, protocol::Response &response) override
 	{
 		if (!provider_) return false;
-		if (request.type != protocol::RequestSetFingerSmoothing) return false;
-		provider_->SetFingerSmoothingConfig(request.setFingerSmoothing);
-		response.type = protocol::ResponseSuccess;
-		return true;
+		switch (request.type) {
+		case protocol::RequestSetFingerSmoothing:
+			provider_->SetFingerSmoothingConfig(request.setFingerSmoothing);
+			response.type = protocol::ResponseSuccess;
+			return true;
+		case protocol::RequestSetDevicePrediction:
+			provider_->SetDevicePrediction(request.setDevicePrediction);
+			response.type = protocol::ResponseSuccess;
+			return true;
+		default:
+			return false;
+		}
 	}
 
 private:
