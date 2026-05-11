@@ -11,6 +11,7 @@ The release body for each tag is composed mechanically from the slice between th
 - **repo:** Own Smoothing driver source and overlay tab plugin (1c67a47)
 - **overlay:** Rebuild smoothing plugin around shell card widgets (3d97ba4)
 - **smoothing:** Take ownership of per-tracker pose prediction (v12) (14e2d0e)
+- **overlay:** SC-style density pass on Prediction + Fingers sub-tabs (c17d40a)
 
 ### Changed
 - **deps:** Bump PairDriver for InputHealth range snapshots (2dd2881)
