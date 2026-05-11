@@ -8,6 +8,7 @@ The release body for each tag is composed mechanically from the slice between th
 
 ### Added
 - Rebuild as smoothing config UI for OpenVR-PairDriver (6da0497)
+- **repo:** Own Smoothing driver source and overlay tab plugin (1c67a47)
 
 ### Changed
 - **deps:** Bump PairDriver for InputHealth range snapshots (2dd2881)
