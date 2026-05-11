@@ -20,6 +20,7 @@ The release body for each tag is composed mechanically from the slice between th
 - M1 round 2: comprehensive driver-side diagnostics (6ce4414)
 - Revert "feat(overlay): rebuild smoothing plugin around shell card widgets" (1018aeb)
 - Rename OpenVR modules to WK variants (7b95369)
+- **overlay:** Split SmoothingPlugin into Fingers + Prediction files (ed01cae)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)

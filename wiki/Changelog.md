@@ -18,6 +18,7 @@ Mirror of the root `CHANGELOG.md`, kept in lock-step by `.github/scripts/Update-
 - M1 round 2: comprehensive driver-side diagnostics (6ce4414)
 - Revert "feat(overlay): rebuild smoothing plugin around shell card widgets" (1018aeb)
 - Rename OpenVR modules to WK variants (7b95369)
+- **overlay:** Split SmoothingPlugin into Fingers + Prediction files (ed01cae)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)
