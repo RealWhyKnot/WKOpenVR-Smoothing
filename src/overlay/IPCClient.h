@@ -8,13 +8,13 @@
 // Named-pipe client for the OpenVR-PairDriver smoothing pipe.
 // Connects to OPENVR_PAIRDRIVER_SMOOTHING_PIPE_NAME, performs the protocol
 // handshake, and sends RequestSetFingerSmoothing payloads. Mirrors the SC
-// IPCClient pattern but only has to deal with the smoothing-feature subset
+// SmoothingIPCClient pattern but only has to deal with the smoothing-feature subset
 // of the protocol -- everything else is rejected by the driver's per-pipe
 // feature mask.
-class IPCClient
+class SmoothingIPCClient
 {
 public:
-    ~IPCClient();
+    ~SmoothingIPCClient();
 
     void Connect();
     protocol::Response SendBlocking(const protocol::Request &request);

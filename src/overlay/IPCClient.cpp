@@ -34,13 +34,13 @@ namespace
     }
 }
 
-IPCClient::~IPCClient()
+SmoothingIPCClient::~SmoothingIPCClient()
 {
     if (pipe && pipe != INVALID_HANDLE_VALUE)
         CloseHandle(pipe);
 }
 
-void IPCClient::Connect()
+void SmoothingIPCClient::Connect()
 {
     LPCSTR pipeName = OPENVR_PAIRDRIVER_SMOOTHING_PIPE_NAME;
 
@@ -68,7 +68,7 @@ void IPCClient::Connect()
     }
 }
 
-protocol::Response IPCClient::SendBlocking(const protocol::Request &request)
+protocol::Response SmoothingIPCClient::SendBlocking(const protocol::Request &request)
 {
     try {
         Send(request);
@@ -95,7 +95,7 @@ protocol::Response IPCClient::SendBlocking(const protocol::Request &request)
     }
 }
 
-void IPCClient::Send(const protocol::Request &request)
+void SmoothingIPCClient::Send(const protocol::Request &request)
 {
     DWORD bytesWritten;
     BOOL success = WriteFile(pipe, &request, sizeof request, &bytesWritten, nullptr);
@@ -109,7 +109,7 @@ void IPCClient::Send(const protocol::Request &request)
     }
 }
 
-protocol::Response IPCClient::Receive()
+protocol::Response SmoothingIPCClient::Receive()
 {
     protocol::Response response(protocol::ResponseInvalid);
     DWORD bytesRead;

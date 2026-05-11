@@ -19,7 +19,11 @@ namespace
         }
         std::wstring dir(root);
         CoTaskMemFree(root);
-        dir += L"\\OpenVR-Smoothing";
+        dir += L"\\OpenVR-Pair";
+        if (!CreateDirectoryW(dir.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
+            return {};
+        }
+        dir += L"\\profiles";
         if (!CreateDirectoryW(dir.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
             return {};
         }
@@ -30,7 +34,7 @@ namespace
     {
         std::wstring dir = ConfigDir();
         if (dir.empty()) return {};
-        return dir + L"\\config.txt";
+        return dir + L"\\smoothing.txt";
     }
 }
 
