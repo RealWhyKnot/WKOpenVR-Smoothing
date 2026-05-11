@@ -16,6 +16,7 @@ The release body for each tag is composed mechanically from the slice between th
 - Final diagnostic pass: full IVRDriverInput coverage, vtable disassembly, serial-number lookup, handle inventory (0a7239e)
 - Round 2 review pass: MinHook lifecycle fixes + module-diff heartbeat (24c131b)
 - M1 round 2: comprehensive driver-side diagnostics (6ce4414)
+- Revert "feat(overlay): rebuild smoothing plugin around shell card widgets" (1018aeb)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)

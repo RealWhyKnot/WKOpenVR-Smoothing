@@ -14,6 +14,7 @@ Mirror of the root `CHANGELOG.md`, kept in lock-step by `.github/scripts/Update-
 - Final diagnostic pass: full IVRDriverInput coverage, vtable disassembly, serial-number lookup, handle inventory (0a7239e)
 - Round 2 review pass: MinHook lifecycle fixes + module-diff heartbeat (24c131b)
 - M1 round 2: comprehensive driver-side diagnostics (6ce4414)
+- Revert "feat(overlay): rebuild smoothing plugin around shell card widgets" (1018aeb)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)
