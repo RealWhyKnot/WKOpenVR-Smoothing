@@ -9,6 +9,7 @@
 #include "Protocol.h"
 #include "ShellContext.h"
 #include "ShellFooter.h"
+#include "UiHelpers.h"
 
 #include <imgui.h>
 
@@ -111,18 +112,16 @@ void SmoothingPlugin::ReplayDevicePredictions()
 void SmoothingPlugin::DrawTab(openvr_pair::overlay::ShellContext &)
 {
 	if (!connectError_.empty()) {
-		ImGui::TextWrapped("%s", connectError_.c_str());
-		if (ImGui::Button("Retry connection")) {
-			ConnectIfNeeded();
-			SendConfig();
-			ReplayDevicePredictions();
-		}
+		openvr_pair::overlay::ui::DrawErrorBanner(
+			"Smoothing driver connection failed",
+			connectError_.c_str());
 		ImGui::Separator();
 	}
 
 	if (ImGui::BeginTabBar("smoothing_tabs")) {
-		if (ImGui::BeginTabItem("Prediction")) { DrawPredictionTab(); ImGui::EndTabItem(); }
-		if (ImGui::BeginTabItem("Fingers"))    { DrawFingersTab();    ImGui::EndTabItem(); }
+		if (ImGui::BeginTabItem("Settings")) { DrawSettingsTab(); ImGui::EndTabItem(); }
+		if (ImGui::BeginTabItem("Advanced")) { DrawAdvancedTab(); ImGui::EndTabItem(); }
+		if (ImGui::BeginTabItem("Logs"))     { DrawLogsTab();     ImGui::EndTabItem(); }
 		ImGui::EndTabBar();
 	}
 
@@ -130,6 +129,33 @@ void SmoothingPlugin::DrawTab(openvr_pair::overlay::ShellContext &)
 	footer.driverConnected = ipc_.IsConnected();
 	footer.driverLabel = "Smoothing driver";
 	openvr_pair::overlay::DrawShellFooter(footer);
+}
+
+void SmoothingPlugin::DrawSettingsTab()
+{
+	openvr_pair::overlay::ui::DrawSectionHeading("Prediction");
+	DrawPredictionTab();
+
+	openvr_pair::overlay::ui::DrawSectionHeading("Finger smoothing");
+	DrawFingersTab();
+}
+
+void SmoothingPlugin::DrawAdvancedTab()
+{
+	openvr_pair::overlay::ui::DrawTextWrapped(
+		"No advanced smoothing knobs yet. Prediction and finger-smoothing "
+		"controls live on Settings.");
+}
+
+void SmoothingPlugin::DrawLogsTab()
+{
+	openvr_pair::overlay::ui::DrawSectionHeading("File locations");
+	openvr_pair::overlay::ui::DrawTextWrapped(
+		"Smoothing runs inside OpenVR-Pair and does not currently write a "
+		"separate overlay log. Driver logs and Smoothing settings are here:");
+	ImGui::Spacing();
+	ImGui::TextWrapped("Driver:   %%LocalAppDataLow%%\\OpenVR-WKPairDriver\\Logs\\driver_log.<ts>.txt");
+	ImGui::TextWrapped("Settings: %%LocalAppDataLow%%\\OpenVR-Pair\\profiles\\smoothing.txt");
 }
 
 namespace openvr_pair::overlay {

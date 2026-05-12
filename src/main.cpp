@@ -95,6 +95,7 @@ int main(int /*argc*/, char ** /*argv*/)
 
     IPCClient client;
     std::string connectError;
+    double lastConnectionAttempt = glfwGetTime();
     try {
         client.Connect();
         SendConfig(client, cfg);
@@ -104,6 +105,20 @@ int main(int /*argc*/, char ** /*argv*/)
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+
+        if (!client.IsConnected()) {
+            const double now = glfwGetTime();
+            if (now - lastConnectionAttempt >= 1.0) {
+                lastConnectionAttempt = now;
+                try {
+                    client.Connect();
+                    SendConfig(client, cfg);
+                    connectError.clear();
+                } catch (const std::exception &e) {
+                    connectError = e.what();
+                }
+            }
+        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -212,16 +227,9 @@ int main(int /*argc*/, char ** /*argv*/)
             ImGui::TextColored(ImVec4(0.85f, 0.30f, 0.25f, 1.0f),
                 "Driver not connected. Settings will save locally and apply once SteamVR is running.");
             if (!connectError.empty()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.30f, 1.0f),
+                    "Smoothing driver connection failed");
                 ImGui::TextWrapped("%s", connectError.c_str());
-            }
-            if (ImGui::Button("Retry connection")) {
-                connectError.clear();
-                try {
-                    client.Connect();
-                    SendConfig(client, cfg);
-                } catch (const std::exception &e) {
-                    connectError = e.what();
-                }
             }
         }
 

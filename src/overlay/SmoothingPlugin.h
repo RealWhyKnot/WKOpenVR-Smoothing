@@ -35,6 +35,9 @@ private:
 	void SendDevicePrediction(uint32_t openVRID, int smoothness); // per-device prediction
 	void ReplayDevicePredictions();                           // resend whole map on connect
 	void TickExternalToolDetection();
+	void DrawSettingsTab();
+	void DrawAdvancedTab();
+	void DrawLogsTab();
 	void DrawPredictionTab();
 	void DrawFingersTab();
 };
