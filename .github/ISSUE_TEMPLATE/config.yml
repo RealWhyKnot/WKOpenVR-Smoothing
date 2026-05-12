@@ -1,5 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: README — Compatibility
-    url: https://github.com/RealWhyKnot/FingerSmoothing#compatibility
-    about: Confirm the issue is in-scope before filing — many "doesn't work" reports turn out to be apps on the OpenXR path the driver doesn't reach.
