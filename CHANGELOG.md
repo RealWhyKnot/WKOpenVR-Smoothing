@@ -22,6 +22,7 @@ The release body for each tag is composed mechanically from the slice between th
 - Revert "feat(overlay): rebuild smoothing plugin around shell card widgets" (1018aeb)
 - Rename OpenVR modules to WK variants (7b95369)
 - **overlay:** Split SmoothingPlugin into Fingers + Prediction files (ed01cae)
+- Align smoothing overlay tabs and connection banners (354f597)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)

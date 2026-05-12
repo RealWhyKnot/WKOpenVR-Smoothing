@@ -20,6 +20,7 @@ Mirror of the root `CHANGELOG.md`, kept in lock-step by `.github/scripts/Update-
 - Revert "feat(overlay): rebuild smoothing plugin around shell card widgets" (1018aeb)
 - Rename OpenVR modules to WK variants (7b95369)
 - **overlay:** Split SmoothingPlugin into Fingers + Prediction files (ed01cae)
+- Align smoothing overlay tabs and connection banners (354f597)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)
