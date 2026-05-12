@@ -15,6 +15,32 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+function Clear-StaleCMakeGeneratorInstance {
+    param([Parameter(Mandatory=$true)][string]$BuildDir)
+
+    $cachePath = Join-Path $BuildDir "CMakeCache.txt"
+    if (-not (Test-Path -LiteralPath $cachePath)) { return }
+
+    $instancePath = $null
+    foreach ($line in Get-Content -LiteralPath $cachePath) {
+        if ($line -match '^CMAKE_GENERATOR_INSTANCE:[^=]*=(.*)$') {
+            $instancePath = $Matches[1]
+            break
+        }
+    }
+    if (-not $instancePath) { return }
+
+    if (-not (Test-Path -LiteralPath $instancePath)) {
+        Write-Host "CMake cached Visual Studio instance no longer exists: $instancePath" -ForegroundColor Yellow
+        Write-Host "Clearing generated CMake configure cache under $BuildDir" -ForegroundColor Yellow
+        Remove-Item -LiteralPath $cachePath -Force
+        $cmakeFiles = Join-Path $BuildDir "CMakeFiles"
+        if (Test-Path -LiteralPath $cmakeFiles) {
+            Remove-Item -LiteralPath $cmakeFiles -Recurse -Force
+        }
+    }
+}
+
 # Activate the repo's tracked git hooks the first time the build runs in a
 # clone. Idempotent: only writes when the value would change.
 $currentHooksPath = & git config --get core.hooksPath 2>$null
@@ -47,6 +73,7 @@ Write-Host "Build version: $Version"
 # bump keeps any pre-3.5 cmake_minimum_required in submodule history accepted
 # by current CMake.
 if (-not $SkipConfigure) {
+    Clear-StaleCMakeGeneratorInstance -BuildDir "build"
     & cmake -S . -B build -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
     if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
 }
@@ -55,17 +82,29 @@ if (-not $SkipConfigure) {
 & cmake --build build --config Release --parallel
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
-# Verify the artifact lands where we expect.
-$exePath = "build/artifacts/Release/OpenVR-WKSmoothing.exe"
-if (-not (Test-Path $exePath)) {
-    throw "Expected overlay exe not found at $exePath"
-}
-$exe = Get-Item $exePath
+# Verify the feature artifacts land where we expect. The Smoothing repo now
+# primarily builds feature modules consumed by OpenVR-WKPairDriver; the old
+# standalone exe target is not part of the normal CMake graph.
+$artifactPaths = @(
+    "build/artifacts/Release/openvr_pair_feature_smoothing_driver.lib",
+    "build/artifacts/Release/openvr_pair_feature_smoothing_overlay.lib"
+)
 Write-Host ""
-Write-Host ("Built {0} ({1:N0} bytes, {2})" -f $exe.Name, $exe.Length, $exe.LastWriteTime)
-Write-Host ("  -> {0}" -f $exe.FullName)
+foreach ($artifactPath in $artifactPaths) {
+    if (-not (Test-Path $artifactPath)) {
+        throw "Expected feature artifact not found at $artifactPath"
+    }
+    $artifact = Get-Item $artifactPath
+    Write-Host ("Built {0} ({1:N0} bytes, {2})" -f $artifact.Name, $artifact.Length, $artifact.LastWriteTime)
+    Write-Host ("  -> {0}" -f $artifact.FullName)
+}
 
 if ($Release) {
+    $exePath = "build/artifacts/Release/OpenVR-Smoothing.exe"
+    if (-not (Test-Path $exePath)) {
+        throw "Release packaging requires standalone exe not found at $exePath"
+    }
+
     # Build the OpenVR-WKPairDriver submodule so its driver tree is available
     # to bundle into the release zip.
     $PairDriverRoot = Join-Path $PSScriptRoot "lib/OpenVR-WKPairDriver"

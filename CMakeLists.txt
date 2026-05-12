@@ -4,6 +4,10 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project("OpenVR-WKSmoothing")
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # Centralised output directory for built artifacts -- keeps the post-build
 # zip-staging logic in build.ps1 simple.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/artifacts)
