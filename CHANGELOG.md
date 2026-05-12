@@ -25,6 +25,7 @@ The release body for each tag is composed mechanically from the slice between th
 - Align smoothing overlay tabs and connection banners (354f597)
 - Refresh PairDriver submodule for build cache fix (2c9215f)
 - Make Smoothing build resilient to VS cache drift (dc92d89)
+- **deps:** Bump driver to protocol v14 (c60fdc2)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)
