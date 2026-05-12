@@ -21,6 +21,8 @@ Mirror of the root `CHANGELOG.md`, kept in lock-step by `.github/scripts/Update-
 - Rename OpenVR modules to WK variants (7b95369)
 - **overlay:** Split SmoothingPlugin into Fingers + Prediction files (ed01cae)
 - Align smoothing overlay tabs and connection banners (354f597)
+- Refresh PairDriver submodule for build cache fix (2c9215f)
+- Make Smoothing build resilient to VS cache drift (dc92d89)
 
 ### Fixed
 - **deploy:** Verify loader-named pair driver (8c4fe7c)
