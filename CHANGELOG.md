@@ -8,6 +8,16 @@ _No notable changes since the last release._
 
 ---
 
+## v2026.6.15.0-beta -- 2026-06-15
+
+### Released
+- Published Smoothing installer for WKOpenVR 2026.6.15.0-beta.
+- Installer: `WKOpenVR-Smoothing-v2026.6.15.0-beta-Setup.exe`
+- SHA256: `767df123a6f0e8192698e73db46331c1e0f1621e8f987b2e2cd3aa3c671f6fbf`
+- Release: <https://github.com/RealWhyKnot/WKOpenVR-Smoothing/releases/tag/v2026.6.15.0-beta>
+
+---
+
 ## v2026.6.14.0-beta -- 2026-06-14
 
 ### Released
